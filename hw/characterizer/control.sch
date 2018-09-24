@@ -26,9 +26,9 @@ Text HLabel 7000 3200 2    50   Input ~ 0
 DC_A
 Text HLabel 7000 3250 2    50   Input ~ 0
 DC_B
-Text HLabel 7300 3400 2    50   Input ~ 0
-VBAT0
 Text HLabel 6550 3550 2    50   Input ~ 0
+VBAT0
+Text HLabel 7300 3400 2    50   Input ~ 0
 VBAT1
 Text HLabel 7050 2000 2    50   Output ~ 0
 ICHG_B
@@ -793,9 +793,9 @@ F 3 "" H 5200 1550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Connection ~ 5200 1550
-Text HLabel 7300 4250 2    50   Input ~ 0
-VBAT2
 Text HLabel 6550 4400 2    50   Input ~ 0
+VBAT2
+Text HLabel 7300 4250 2    50   Input ~ 0
 VBAT3
 $Comp
 L Device:R_Small R22
@@ -933,13 +933,13 @@ Wire Wire Line
 Connection ~ 2900 3650
 Wire Wire Line
 	5550 3650 5450 3650
-Text Label 4800 6200 0    50   ~ 0
-DIR_A
 Text Label 4800 6300 0    50   ~ 0
+DIR_A
+Text Label 4800 6200 0    50   ~ 0
 DIR_B
-Text HLabel 5850 6300 2    50   Output ~ 0
-nDIR_B
 Text HLabel 5850 6200 2    50   Output ~ 0
+nDIR_B
+Text HLabel 5850 6300 2    50   Output ~ 0
 nDIR_A
 Wire Wire Line
 	4800 6200 5100 6200
