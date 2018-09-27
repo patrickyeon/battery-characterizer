@@ -52,10 +52,45 @@ void test_start_and_stop_discharge(void) {
     _assert_cenden(true, true, false, false);
 }
 
+void test_direction_setting(void) {
+    //  in chg_dischg direction, the cells over TSENS0/TSENS2 are charging and
+    // the cells over TSENS1/TSENS3 are discharging
+    setup(20);
+    fake_at30ts74_set(TSENS0, 100);
+    fake_at30ts74_set(TSENS3, 100);
+    director_init();
+
+    director_direction(CHG_DISCHG, DISCHG_CHG);
+    director_enable(CENA | CENB | DENA | DENB);
+    // CENA and CENB should not succeed, due to temp limits
+    _assert_cenden(false, false, true, true);
+
+    director_disable(DENA | DENB);
+    director_direction(DISCHG_CHG, CHG_DISCHG);
+    director_enable(CENA | CENB | DENA | DENB);
+    _assert_cenden(true, true, false, false);
+}
+
+void test_direction_switch(void) {
+    setup(20);
+    director_init();
+    TEST_ASSERT_EQUAL(CHG_DISCHG, director.dirA);
+    TEST_ASSERT_EQUAL(CHG_DISCHG, director.dirB);
+
+    director_enable(CENA | CENB | DENA | DENB);
+    director_direction(CHG_DISCHG, DISCHG_CHG);
+    TEST_ASSERT_EQUAL(CHG_DISCHG, director.dirA);
+    TEST_ASSERT_EQUAL(DISCHG_CHG, director.dirB);
+    // we should disable charging/discharging when we switch direction
+    _assert_cenden(true, false, true, false);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init);
     RUN_TEST(test_start_charge);
     RUN_TEST(test_start_and_stop_discharge);
+    RUN_TEST(test_direction_setting);
+    RUN_TEST(test_direction_switch);
     return UNITY_END();
 }

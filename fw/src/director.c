@@ -8,7 +8,7 @@ struct director_t director;
 
 static const int16_t min_temp = 5, max_temp = 35;
 
-static void _disable(enum dir_state_e which) {
+static void _disable(dir_state_e which) {
     switch (which) {
     case CENA:
         director.cenA = false;
@@ -32,26 +32,27 @@ static void _disable(enum dir_state_e which) {
     }
 }
 
-static int _enable(enum dir_state_e which) {
+static int _enable(dir_state_e which) {
     bool *flag;
-    // FIXME need to actually figure out which TSENS matters
     tsens_e tsens;
+    //  if a pair is in CHG_DISCHG, the lower-numbered cell+tsens are charging,
+    // and the other cell+tsens are discharging. Swap for DISCHG_CHG.
     switch (which) {
     case CENA:
         flag = &director.cenA;
-        tsens = TSENS0;
+        tsens = (director.dirA == CHG_DISCHG ? TSENS0 : TSENS1);
         break;
     case CENB:
         flag = &director.cenB;
-        tsens = TSENS1;
+        tsens = (director.dirB == CHG_DISCHG ? TSENS2 : TSENS3);
         break;
     case DENA:
         flag = &director.denA;
-        tsens = TSENS0;
+        tsens = (director.dirA == CHG_DISCHG ? TSENS1 : TSENS0);
         break;
     case DENB:
         flag = &director.denB;
-        tsens = TSENS1;
+        tsens = (director.dirB == CHG_DISCHG ? TSENS3 : TSENS2);
         break;
     default:
         return -1; // invalid state
@@ -76,17 +77,32 @@ static int _enable(enum dir_state_e which) {
     return 0;
 }
 
-static void _set_dir(enum chg_direction_e a, enum chg_direction_e b) {
+static void _set_dir(chg_direction_e a, chg_direction_e b) {
     if (a == CHG_DISCHG) {
         gpio_set(GPIOA, DIR_A);
     } else {
         gpio_clear(GPIOA, DIR_A);
     }
+    director.dirA = a;
+
     if (b == CHG_DISCHG) {
         gpio_set(GPIOB, DIR_B);
     } else {
         gpio_clear(GPIOB, DIR_B);
     }
+    director.dirB = b;
+}
+
+void director_direction(chg_direction_e a, chg_direction_e b) {
+    if (a != director.dirA) {
+        _disable(CENA);
+        _disable(DENA);
+    }
+    if (b != director.dirB) {
+        _disable(CENB);
+        _disable(DENB);
+    }
+    _set_dir(a, b);
 }
 
 void director_init(void) {
@@ -100,7 +116,7 @@ void director_init(void) {
 }
 
 int director_enable(dir_state_t target) {
-    enum dir_state_e dirs[4] = {CENA, CENB, DENA, DENB};
+    dir_state_e dirs[4] = {CENA, CENB, DENA, DENB};
     for (int i = 0; i < 4; i++) {
         if (target & dirs[i]) {
             _enable(dirs[i]);
