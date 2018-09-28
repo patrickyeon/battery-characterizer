@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name local)(type Legacy)(uri /home/pat/projects/batteries/hw/characterizer/library/local.lib)(options "")(descr ""))
+  (lib (name parts)(type Legacy)(uri /home/pat/projects/hackhat/hw/particle_sensor/library/parts.lib)(options "")(descr ""))
+)
