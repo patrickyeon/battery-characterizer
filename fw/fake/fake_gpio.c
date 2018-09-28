@@ -46,6 +46,11 @@ void gpio_mode_setup(uint32_t gpioport, uint8_t mode, uint8_t pull_up_down,
         port->out_pins &= ~gpios;
         port->in_pins |= gpios;
         break;
+    case GPIO_MODE_ANALOG:
+        // managed using fake_stm_adc
+        port->out_pins &= ~gpios;
+        port->in_pins &= ~gpios;
+        break;
     default:
         // not yet implemented, or invalid
         assert(0);

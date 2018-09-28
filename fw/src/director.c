@@ -1,3 +1,4 @@
+#include "./adc.h"
 #include "./director.h"
 #include "./pindefs.h"
 #include "./temperature.h"
@@ -6,7 +7,8 @@
 
 struct director_t director;
 
-static const int16_t min_temp = 5, max_temp = 35;
+static int16_t min_temp = 5, max_temp = 35;
+static uint16_t vbat_min, vbat_max;
 
 static void _disable(dir_state_e which) {
     switch (which) {
@@ -34,6 +36,7 @@ static void _disable(dir_state_e which) {
 
 static int _enable(dir_state_e which) {
     bool *flag;
+    uint16_t vbat;
     tsens_e tsens;
     //  if a pair is in CHG_DISCHG, the lower-numbered cell+tsens are charging,
     // and the other cell+tsens are discharging. Swap for DISCHG_CHG.
@@ -41,18 +44,22 @@ static int _enable(dir_state_e which) {
     case CENA:
         flag = &director.cenA;
         tsens = (director.dirA == CHG_DISCHG ? TSENS0 : TSENS1);
+        vbat = adc_read(director.dirA == CHG_DISCHG ? CHAN_VB0 : CHAN_VB1);
         break;
     case CENB:
         flag = &director.cenB;
         tsens = (director.dirB == CHG_DISCHG ? TSENS2 : TSENS3);
+        vbat = adc_read(director.dirB == CHG_DISCHG ? CHAN_VB2 : CHAN_VB3);
         break;
     case DENA:
         flag = &director.denA;
         tsens = (director.dirA == CHG_DISCHG ? TSENS1 : TSENS0);
+        vbat = adc_read(director.dirA == CHG_DISCHG ? CHAN_VB1 : CHAN_VB0);
         break;
     case DENB:
         flag = &director.denB;
         tsens = (director.dirB == CHG_DISCHG ? TSENS3 : TSENS2);
+        vbat = adc_read(director.dirB == CHG_DISCHG ? CHAN_VB3 : CHAN_VB2);
         break;
     default:
         return -1; // invalid state
@@ -62,7 +69,8 @@ static int _enable(dir_state_e which) {
         return 0;
     }
     int16_t temp = temperature_read(tsens);
-    if (min_temp <= temp && temp <= max_temp) {
+    if (min_temp <= temp && temp <= max_temp
+        && vbat_min <= vbat && vbat <= vbat_max) {
         *flag = true;
         if (flag == &director.cenA) {
             gpio_set(GPIOB, CEN_A);
@@ -106,6 +114,9 @@ void director_direction(chg_direction_e a, chg_direction_e b) {
 }
 
 void director_init(void) {
+    vbat_min = adc_mv_to_code(2500, 6600);
+    vbat_max = adc_mv_to_code(4200, 6600);
+
     _disable(CENA);
     _disable(CENB);
     _disable(DENA);

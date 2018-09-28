@@ -1,20 +1,29 @@
 #include "unity.h"
+#include "../src/adc.h"
 #include "../src/director.h"
 #include "../src/gpio.h"
 #include "../src/pindefs.h"
 #include "../src/temperature.h"
+#include "../fake/fake_stm_adc.h"
 #include "../fake/fake_at30ts74.h"
 #include "../fake/fake_gpio.h"
 
 #include <stdbool.h>
 
-void setup(int16_t setpoint) {
+void setup(int16_t setpoint, uint16_t vcells) {
     gpio_init();
+    uint8_t chans[] = {CHAN_VB0, CHAN_VB1, CHAN_VB2, CHAN_VB3};
+    adc_init(4, chans, ADC_MODE_SCAN_INFINITE);
     director_init();
     fake_at30ts74_set(TSENS0, setpoint);
     fake_at30ts74_set(TSENS1, setpoint);
     fake_at30ts74_set(TSENS2, setpoint);
     fake_at30ts74_set(TSENS3, setpoint);
+
+    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(vcells, 6600));
+    fake_stm_adc_set(CHAN_VB1, adc_mv_to_code(vcells, 6600));
+    fake_stm_adc_set(CHAN_VB2, adc_mv_to_code(vcells, 6600));
+    fake_stm_adc_set(CHAN_VB3, adc_mv_to_code(vcells, 6600));
 }
 
 void _assert_cenden(bool cena, bool cenb, bool dena, bool denb) {
@@ -30,20 +39,20 @@ void _assert_cenden(bool cena, bool cenb, bool dena, bool denb) {
 }
 
 void test_init(void) {
-    setup(20);
+    setup(20, 3700);
     _assert_cenden(false, false, false, false);
     return;
 }
 
 void test_start_charge(void) {
-    setup(20);
+    setup(20, 3700);
     int err = director_enable(CENA | CENB);
     TEST_ASSERT_EQUAL(0, err);
     _assert_cenden(true, true, false, false);
 }
 
 void test_start_and_stop_discharge(void) {
-    setup(20);
+    setup(20, 3700);
     int err = director_enable(CENA | CENB | DENA | DENB);
     TEST_ASSERT_EQUAL(0, err);
     _assert_cenden(true, true, true, true);
@@ -55,7 +64,7 @@ void test_start_and_stop_discharge(void) {
 void test_direction_setting(void) {
     //  in chg_dischg direction, the cells over TSENS0/TSENS2 are charging and
     // the cells over TSENS1/TSENS3 are discharging
-    setup(20);
+    setup(20, 3700);
     fake_at30ts74_set(TSENS0, 100);
     fake_at30ts74_set(TSENS3, 100);
     director_init();
@@ -72,7 +81,7 @@ void test_direction_setting(void) {
 }
 
 void test_direction_switch(void) {
-    setup(20);
+    setup(20, 3700);
     director_init();
     TEST_ASSERT_EQUAL(CHG_DISCHG, director.dirA);
     TEST_ASSERT_EQUAL(CHG_DISCHG, director.dirB);
@@ -85,6 +94,16 @@ void test_direction_switch(void) {
     _assert_cenden(true, false, true, false);
 }
 
+void test_over_under_voltage(void) {
+    setup(20, 3700);
+    director_init();
+    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(4300, 6600));
+    fake_stm_adc_set(CHAN_VB3, adc_mv_to_code(2200, 6600));
+    director_enable(CENA | CENB | DENA | DENB);
+
+    _assert_cenden(false, true, true, false);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init);
@@ -92,5 +111,6 @@ int main(void) {
     RUN_TEST(test_start_and_stop_discharge);
     RUN_TEST(test_direction_setting);
     RUN_TEST(test_direction_switch);
+    RUN_TEST(test_over_under_voltage);
     return UNITY_END();
 }
