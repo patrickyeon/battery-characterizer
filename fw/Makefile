@@ -22,34 +22,38 @@ ARM_LDFLAGS += $(ARM_ARCH_FLAGS)
 
 SRCDIR = src/
 TESTDIR = test/
+DRIVERDIR = driver/
 FAKEDIR = fake/
 BUILDDIR = build/
 UNITYDIR = Unity/
 TARGETDIR = $(BUILDDIR)target/
+TARGETDRIVERDIR = $(TARGETDIR)driver/
 NATIVEDIR = $(BUILDDIR)native/
 NATIVETESTDIR = $(NATIVEDIR)test/
 NATIVEFAKEDIR = $(NATIVEDIR)fake/
 RESULTDIR = $(BUILDDIR)results/
 
 # I don't like it, but until something better works out
-_dummy := $(shell $(MKDIR) $(TARGETDIR) $(TARGETDIR)main/ $(NATIVEDIR) $(NATIVETESTDIR) $(NATIVEFAKEDIR) $(RESULTDIR))
+_dummy := $(shell $(MKDIR) $(TARGETDIR) $(TARGETDIR)main/ $(NATIVEDIR) $(NATIVETESTDIR) $(TARGETDRIVERDIR) $(NATIVEFAKEDIR) $(RESULTDIR))
 
 SRCFILES = $(wildcard $(SRCDIR)*.c)
 TESTFILES = $(wildcard $(TESTDIR)*.c)
 FAKEFILES = $(wildcard $(FAKEDIR)*.c)
+DRIVERFILES = $(wildcard $(DRIVERDIR)*.c)
 
 RESULTS = $(patsubst $(TESTDIR)test_%.c,$(RESULTDIR)%.txt,$(TESTFILES))
 
 targetsrc:  $(patsubst $(SRCDIR)%.c,$(TARGETDIR)%.o,$(SRCFILES))
 nativesrc:  $(patsubst $(SRCDIR)%.c,$(NATIVEDIR)%.o,$(SRCFILES))
-fakesrc:  $(patsubst $(FAKEDIR)%.c,$(NATIVEFAKEDIR)%.o,$(FAKEFILES))
+fakesrc:    $(patsubst $(FAKEDIR)%.c,$(NATIVEFAKEDIR)%.o,$(FAKEFILES))
+driversrc:  $(patsubst $(DRIVERDIR)%.c,$(TARGETDRIVERDIR)%.o,$(DRIVERFILES))
 
 main: $(TARGETDIR)main.elf
 
-$(TARGETDIR)%.elf: %.c targetsrc
+$(TARGETDIR)%.elf: %.c targetsrc driversrc
 	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $*.c -o $(TARGETDIR)main/$*.o
 	$(ARM_PREFIX)$(LD) $(ARM_LDFLAGS) $(TARGETDIR)*.o $(TARGETDIR)main/$*.o\
-			$(ARM_LDLIBS) -o $(TARGETDIR)$*.elf
+			$(TARGETDRIVERDIR)*.o $(ARM_LDLIBS) -o $(TARGETDIR)$*.elf
 	$(ARM_PREFIX)$(OBJCOPY) -Obinary $(TARGETDIR)$*.elf $(TARGETDIR)$*.bin
 	$(ARM_PREFIX)$(OBJCOPY) -Oihex $(TARGETDIR)$*.elf $(TARGETDIR)$*.hex
 
@@ -67,6 +71,9 @@ $(TARGETDIR)%.o:: $(SRCDIR)%.c
 
 $(NATIVEDIR)%.o:: $(SRCDIR)%.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+$(TARGETDRIVERDIR)%.o:: $(DRIVERDIR)%.c
+	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $< -o $@
 
 $(NATIVEFAKEDIR)%.o:: $(FAKEDIR)%.c
 	$(CC) $(CFLAGS) -c $< -o $@
