@@ -13,7 +13,7 @@ MKDIR = mkdir -p
 CFLAGS = -g -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0 
 
 ARM_ARCH_FLAGS = -mthumb -mcpu=cortex-m0
-ARM_CFLAGS = $(ARM_ARCH_FLAGS) $(CFLAGS)
+ARM_CFLAGS = $(ARM_ARCH_FLAGS) -DNDEBUG $(CFLAGS)
 #ARM_CFLAGS += -fno-common -ffunction-sections -fdata-sections
 ARM_LDLIBS = -lopencm3_stm32f0
 ARM_LDSCRIPT = $(OPENCM3_DIR)/lib/stm32/f0/stm32f04xz6.ld

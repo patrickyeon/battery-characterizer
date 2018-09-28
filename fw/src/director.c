@@ -10,6 +10,34 @@ struct director_t director;
 static int16_t min_temp = 5, max_temp = 35;
 static uint16_t vbat_min, vbat_max;
 
+static int16_t _temp_for(dir_state_e channel) {
+    //  if a pair is in CHG_DISCHG, the lower-numbered cell+tsens are charging,
+    // and the other cell+tsens are discharging. Swap for DISCHG_CHG.
+    switch(channel) {
+    case CENA:
+        return temperature_read(director.dirA == CHG_DISCHG ? TSENS0 : TSENS1);
+    case CENB:
+        return temperature_read(director.dirB == CHG_DISCHG ? TSENS2 : TSENS3);
+    case DENA:
+        return temperature_read(director.dirA == CHG_DISCHG ? TSENS1 : TSENS0);
+    case DENB:
+        return temperature_read(director.dirB == CHG_DISCHG ? TSENS3 : TSENS2);
+    }
+}
+
+static uint16_t _voltage_for(dir_state_e channel) {
+    switch(channel) {
+    case CENA:
+        return adc_read(director.dirA == CHG_DISCHG ? CHAN_VB0 : CHAN_VB1);
+    case CENB:
+        return adc_read(director.dirB == CHG_DISCHG ? CHAN_VB2 : CHAN_VB3);
+    case DENA:
+        return adc_read(director.dirA == CHG_DISCHG ? CHAN_VB1 : CHAN_VB0);
+    case DENB:
+        return adc_read(director.dirB == CHG_DISCHG ? CHAN_VB3 : CHAN_VB2);
+    }
+}
+
 static void _disable(dir_state_e which) {
     switch (which) {
     case CENA:
@@ -36,30 +64,28 @@ static void _disable(dir_state_e which) {
 
 static int _enable(dir_state_e which) {
     bool *flag;
-    uint16_t vbat;
-    tsens_e tsens;
-    //  if a pair is in CHG_DISCHG, the lower-numbered cell+tsens are charging,
-    // and the other cell+tsens are discharging. Swap for DISCHG_CHG.
+    uint32_t port;
+    uint16_t pin;
     switch (which) {
     case CENA:
         flag = &director.cenA;
-        tsens = (director.dirA == CHG_DISCHG ? TSENS0 : TSENS1);
-        vbat = adc_read(director.dirA == CHG_DISCHG ? CHAN_VB0 : CHAN_VB1);
+        port = GPIOB;
+        pin = CEN_A;
         break;
     case CENB:
         flag = &director.cenB;
-        tsens = (director.dirB == CHG_DISCHG ? TSENS2 : TSENS3);
-        vbat = adc_read(director.dirB == CHG_DISCHG ? CHAN_VB2 : CHAN_VB3);
+        port = GPIOA;
+        pin = CEN_B;
         break;
     case DENA:
         flag = &director.denA;
-        tsens = (director.dirA == CHG_DISCHG ? TSENS1 : TSENS0);
-        vbat = adc_read(director.dirA == CHG_DISCHG ? CHAN_VB1 : CHAN_VB0);
+        port = GPIOB;
+        pin = DEN_A;
         break;
     case DENB:
         flag = &director.denB;
-        tsens = (director.dirB == CHG_DISCHG ? TSENS3 : TSENS2);
-        vbat = adc_read(director.dirB == CHG_DISCHG ? CHAN_VB3 : CHAN_VB2);
+        port = GPIOB;
+        pin = DEN_B;
         break;
     default:
         return -1; // invalid state
@@ -68,19 +94,12 @@ static int _enable(dir_state_e which) {
         // already enabled
         return 0;
     }
-    int16_t temp = temperature_read(tsens);
+    int16_t temp = _temp_for(which);
+    uint16_t vbat = _voltage_for(which);
     if (min_temp <= temp && temp <= max_temp
         && vbat_min <= vbat && vbat <= vbat_max) {
         *flag = true;
-        if (flag == &director.cenA) {
-            gpio_set(GPIOB, CEN_A);
-        } else if (flag == &director.cenB) {
-            gpio_set(GPIOA, CEN_B);
-        } else if (flag == &director.denA) {
-            gpio_set(GPIOB, DEN_A);
-        } else {
-            gpio_set(GPIOB, DEN_B);
-        }
+        gpio_set(port, pin);
     }
     return 0;
 }
@@ -150,4 +169,48 @@ int director_disable(dir_state_t target) {
         _disable(DENB);
     }
     return 0;
+}
+
+static uint32_t _check(bool condition, dir_state_e channel, dir_err_e errcode) {
+    if (condition) {
+        _disable(channel);
+        return errcode;
+    } else {
+        return 0;
+    }
+}
+
+static uint32_t _check_all(dir_state_e channel, dir_err_e basecode) {
+    uint32_t retval = 0;
+
+    int16_t temp = _temp_for(channel);
+    retval |= _check(temp < min_temp, channel, basecode << 3);
+    retval |= _check(temp > max_temp, channel, basecode << 2);
+
+    uint16_t vbat = _voltage_for(channel);
+    retval |= _check(vbat < vbat_min, channel, basecode << 1);
+    retval |= _check(vbat > vbat_max, channel, basecode);
+
+    return retval;
+}
+
+uint32_t director_checkup(void) {
+    uint32_t retval = 0;
+    if (director.cenA) {
+        retval |= _check_all(CENA, (director.dirA == CHG_DISCHG ?
+                                    ERR_OVERVOLT_CELL0 : ERR_OVERVOLT_CELL1));
+    }
+    if (director.cenB) {
+        retval |= _check_all(CENB, (director.dirB == CHG_DISCHG ?
+                                    ERR_OVERVOLT_CELL2 : ERR_OVERVOLT_CELL3));
+    }
+    if (director.denA) {
+        retval |= _check_all(DENA, (director.dirA == CHG_DISCHG ?
+                                    ERR_OVERVOLT_CELL1 : ERR_OVERVOLT_CELL0));
+    }
+    if (director.denB) {
+        retval |= _check_all(DENB, (director.dirB == CHG_DISCHG ?
+                                    ERR_OVERVOLT_CELL3 : ERR_OVERVOLT_CELL2));
+    }
+    return retval;
 }
