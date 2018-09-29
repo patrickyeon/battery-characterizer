@@ -1,0 +1,60 @@
+Component,Description,Part,References,Value,Footprint,Quantity Per PCB,Datasheet,Digikey PN
+1,single battery cell,Battery_Cell,BT1 BT2 BT3 BT4,Battery_Cell,18650-keyelco,4,~,
+2,Unpolarized capacitor,C_Small,C5 C7 C9 C10 C11 C12 C13 C14 C15 C16 C18 C25 C27 C30 C32 C33 C35 C42 C44 C47,100n,C_0603_1608Metric,20,~,
+3,Unpolarized capacitor,C_Small,C20 C37,10n,C_0603_1608Metric,2,~,
+4,Unpolarized capacitor,C_Small,C21 C22 C23 C28 C38 C39 C40 C45,10u,C_1206_3216Metric,8,~,311-1376-1-ND
+5,Unpolarized capacitor,C_Small,C6 C8,18p,C_0603_1608Metric,2,~,
+6,Unpolarized capacitor,C_Small,C26 C43,1n91,C_0603_1608Metric,2,~,
+7,Unpolarized capacitor,C_Small,C1,1u,C_0603_1608Metric,1,~,
+8,Unpolarized capacitor,C_Small,C3,2u2,C_0603_1608Metric,1,~,
+9,Unpolarized capacitor,C_Small,C2,470p,C_0603_1608Metric,1,~,
+10,Unpolarized capacitor,C_Small,C4,4n7,C_0603_1608Metric,1,~,
+11,Unpolarized capacitor,C_Small,C24 C41,63p4,C_0603_1608Metric,2,~,
+12,Unpolarized capacitor,C_Small,C17 C19 C29 C31 C34 C36 C46 C48,DNI,C_0603_1608Metric,8,~,
+13,"resettable fuse, polymeric positive temperature coefficient (PPTC), small symbol",Polyfuse_Small,F1 F2 F3 F4,MF-USML700-2,R_1210_3225Metric,4,~,MF-USML700-2CT-ND
+14,,USB_OTG,J3,10118194-0001LF,USB-microB-AMPH,1, ~,609-4618-1-ND
+15,"Generic screw terminal, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)",Screw_Terminal_01x04,J1,1988820,TERM_4_5mm,1,~,277-1766-ND
+16,"Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)",Conn_01x03,J4 J5 J6 J7 J8 J9 J10 J11,36-54-ND,BATTERY_CLIP_36-54,8,~,36-54-ND
+17,"Generic connector, double row, 02x05, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)",Conn_02x05_Odd_Even,J2,Conn_02x05_Odd_Even,CONN_JTAG_10,1,~,1175-1629-ND
+18,"Inductor, small symbol",L_Small,L1 L2,2.2uH,IND-10.4x10.4,2,~,495-1799-1-ND
+19,Transistor N-MOSFETwith substrate diode (general),Q_NMOS_GSD,Q1 Q2 Q6 Q8 Q9 Q10 Q14 Q15 Q16 Q20 Q22 Q23 Q24 Q28,BSS123,SOT-23,14,~,BSS123W-FDICT-ND
+20,Transistor P-MOSFET with substrate diode (general),Q_PMOS_GSD,Q7 Q13 Q21 Q27,BSS84,SOT-23,4,~,BSS84W-FDICT-ND
+21,,FDMA008P20LZ,Q3 Q4 Q11 Q12 Q17 Q18 Q25 Q26 Q29 Q30 Q31 Q32 Q33 Q34 Q35 Q36,FDMA008P20LZ,MICROFET_2x2,16,~,FDMA008P20LZOSCT-ND
+22,,PSMN7R0-30MLC,Q5 Q19,"PSMN7R0-30MLC,115",LFPAK33,2,~,1727-7144-1-ND
+23,"Resistor, small symbol",R_Small,R1 R10 R39 R59 R61 R76 R96 R98,0R,R_0603_1608Metric,8,~,
+24,"Resistor, small symbol",R_Small,R33 R51 R70 R88,0r01,R_2010_5025Metric,4,~,CSRN2010FK10L0CT-ND
+25,"Resistor, small symbol",R_Small,R9,100k,R_0603_1608Metric,1,~,
+26,"Resistor, small symbol",R_Small,R3 R4 R5 R8 R13 R14 R15 R16 R19 R20 R21 R22 R25 R26 R27 R28 R40 R42 R43 R62 R63 R64 R65 R77 R79 R80,10k,R_0603_1608Metric,26,~,
+27,"Resistor, small symbol",R_Small,R54 R91,14k3,R_0603_1608Metric,2,~,
+28,"Resistor, small symbol",R_Small,R6,1M,R_0603_1608Metric,1,~,
+29,"Resistor, small symbol",R_Small,R38 R41 R58 R75 R78 R95,1k,R_0603_1608Metric,6,~,
+30,"Resistor, small symbol",R_Small,R31 R35 R49 R55 R68 R72 R86 R92,20k,R_0603_1608Metric,8,~,
+31,"Resistor, small symbol",R_Small,R37 R57 R74 R94,2k,R_0603_1608Metric,4,~,
+32,"Resistor, small symbol",R_Small,R48 R85,2k61,R_0603_1608Metric,2,~,
+33,"Resistor, small symbol",R_Small,R11 R12 R29 R30 R32 R34 R36 R44 R46 R47 R50 R52 R56 R60 R66 R67 R69 R71 R73 R81 R83 R84 R87 R89 R93 R97,3k3,R_0603_1608Metric,26,~,
+34,"Resistor, small symbol",R_Small,R17 R18 R23 R24,4k02,R_0603_1608Metric,4,~,
+35,"Resistor, small symbol",R_Small,R45 R82,78k7,R_0603_1608Metric,2,~,
+36,"Resistor, small symbol",R_Small,R53 R90,86k6,R_0603_1608Metric,2,~,
+37,"Resistor, small symbol",R_Small,R2 R7,DNI,R_0603_1608Metric,2,~,
+38,,"74LVC2G04GW,125",U3,"74LVC2G04GW,125",SOT-363_SC-70-6,1,,1727-4032-1-ND
+39,,AT30TS74,U4 U5 U9 U10,AT30TS74,MSOP-8_3x3mm_P0.65mm,4,,1611-AT30TS74-XM8M-B-ND
+40,"150mA Low Dropout Voltage Regulator, Fixed Output 3.3V, SOT-23-5",MIC5205-3.3,U1,MIC5205-3.3,SOT-23-5,1,http://ww1.microchip.com/downloads/en/devicedoc/mic5205.pdf,576-1259-1-ND
+41,,STM32F042K6T6,U2,STM32F042K6T6,LQFP-32_7x7mm_P0.8mm,1,,497-14647-ND
+42,"Dual Opamp, SOIC-8/DIP-8/SSOP-8/TO-99",Opamp_Dual_Generic,U6 U8 U11 U13,TLV272CS-13,MSOP-8_3x3mm_P0.65mm,4,,TLV272CS-13DICT-ND
+43,,TPS54719,U7 U12,TPS54719,WQFN-16-1EP_3x3mm_P0.5mm_EP1.75x1.75mm,2,,296-36812-1-ND
+44,Two pin crystal,Crystal,Y1,ABLS-8.000MHZ-B4-T,Crystal_SMD_HC49-SD,1,~,535-10212-1-ND
+
+
+
+
+
+Component Groups:,44
+Component Count:,217
+Fitted Components:,217
+Number of PCBs:,1
+Total components:,217
+Schematic Version:,
+Schematic Date:,
+BoM Date:,Fri 28 Sep 2018 05:45:31 PM PDT
+Schematic Source:,/home/pat/projects/batteries/hw/characterizer/characterizer.sch
+KiCad Version:,Eeschema 5.0.0-fee4fd1~65~ubuntu17.10.1
