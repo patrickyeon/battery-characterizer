@@ -10,7 +10,9 @@ typedef struct abs_time_t {
 } abs_time_t;
 
 void timers_init(void);
+void timers_set_systime(uint32_t sec, uint16_t ms);
 abs_time_t systime(void);
 uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to);
+
 
 #endif // TIMERS_H

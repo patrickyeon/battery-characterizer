@@ -143,6 +143,10 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
             || (when->sec + _header.timestamp_offset) > 0xffff)) {
         // that first situation reeks of someone messing with timekeeping
         // the second would be we've overtimed this page
+        // sanity check: we're not going to serve time travellers
+        if (when->sec > systime().sec + 1) {
+            return -2;
+        }
         _header.status |= HEADER_TIMEOUT;
         write_header(&_header, _page);
     }
@@ -166,7 +170,8 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
                       details[0], details[1], details[2], details[3],
                       0};
     buff[7] = crc(buff, 7);
-    uint32_t addr = LOG_BASE + _page * FLASH_PAGESIZE + (_seqnum + 1) * 8;
+    uint32_t offset = (_seqnum - _header.seqnum_base + 1) * 8;
+    uint32_t addr = LOG_BASE + _page * FLASH_PAGESIZE + offset;
     flash_write(buff, addr, 8);
     return _seqnum++;
 }

@@ -20,6 +20,13 @@ void timers_init(void) {
     systick_counter_enable();
 }
 
+void timers_set_systime(uint32_t sec, uint16_t ms) {
+    sec += ms / 1000;
+    ms %= 1000;
+    _sec = sec;
+    _ms = ms;
+}
+
 void sys_tick_handler(void) {
     if (_ms == 999) {
         _ms = 0;
@@ -30,9 +37,6 @@ void sys_tick_handler(void) {
 }
 
 abs_time_t systime(void) {
-    //  _ms counts from 0 to 2000, _sec just counts up. This way we can handle
-    // the edge case where _ms and _sec get incremented in between us reading
-    // the two.
     uint16_t ms = _ms;
     uint32_t sec = _sec;
     if (ms != _ms) {
