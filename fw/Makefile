@@ -10,10 +10,18 @@ RM = rm
 OBJCOPY = objcopy
 MKDIR = mkdir -p
 
-CFLAGS = -g -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0 
+HWID ?= 0x0
+ifeq ($(HWID),0x0)
+$(warning no hwid, using 0x0000)
+else
+$(warning using $(HWID))
+endif
+
+CFLAGS = -g -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0
+NATIVE_CFLAGS = -DHWID=0x1337 $(CFLAGS)
 
 ARM_ARCH_FLAGS = -mthumb -mcpu=cortex-m0
-ARM_CFLAGS = $(ARM_ARCH_FLAGS) -DNDEBUG $(CFLAGS)
+ARM_CFLAGS = $(ARM_ARCH_FLAGS) -DNDEBUG -DHWID=$(HWID) $(CFLAGS)
 #ARM_CFLAGS += -fno-common -ffunction-sections -fdata-sections
 ARM_LDLIBS = -lopencm3_stm32f0
 ARM_LDSCRIPT = $(OPENCM3_DIR)/lib/stm32/f0/stm32f04xz6.ld
@@ -64,19 +72,19 @@ $(RESULTDIR)%.txt: $(NATIVETESTDIR)%.o
 	-./$< > $@ 2>&1
 
 $(NATIVETESTDIR)%.o:: $(TESTDIR)test_%.c $(SRCDIR)%.c nativesrc fakesrc
-	$(CC) $(CFLAGS) -I$(UNITYDIR)src $(TESTDIR)test_$*.c $(NATIVEDIR)*.o $(NATIVEFAKEDIR)*.o $(UNITYDIR)src/unity.c -o $@
+	$(CC) $(NATIVE_CFLAGS) -I$(UNITYDIR)src $(TESTDIR)test_$*.c $(NATIVEDIR)*.o $(NATIVEFAKEDIR)*.o $(UNITYDIR)src/unity.c -o $@
 
 $(TARGETDIR)%.o:: $(SRCDIR)%.c
 	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $< -o $@
 
 $(NATIVEDIR)%.o:: $(SRCDIR)%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(NATIVE_CFLAGS) -c $< -o $@
 
 $(TARGETDRIVERDIR)%.o:: $(DRIVERDIR)%.c
 	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $< -o $@
 
 $(NATIVEFAKEDIR)%.o:: $(FAKEDIR)%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(NATIVE_CFLAGS) -c $< -o $@
 
 clean:
 	find $(BUILDDIR) -type f -delete
