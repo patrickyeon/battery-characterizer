@@ -4,6 +4,7 @@
 #include "../fake/fake_flash.h"
 
 void setup(void) {
+    timers_set_systime(0, 0);
     fake_flash_init();
     logger_init();
 }
@@ -87,6 +88,26 @@ void test_log_into_next_page(void) {
     }
 }
 
+void test_log_full(void) {
+    setup();
+    logger_initpage(0);
+    for (int i = 0; i < 3; i++) {
+        timers_set_systime(i * 0xf0000, 0);
+        abs_time_t t = (abs_time_t){i * 0xf0000, 99};
+        TEST_ASSERT(logger_log_iv(&t, LOG_IV_CHG_BAT0, 188, 3777) >= 0);
+    }
+    // we should now be on the third page, so when this one fills we're full
+    for (int i = 0; i < 127; i++) {
+        timers_set_systime(2 * 0xf0000 + i + 2, 0);
+        abs_time_t t = (abs_time_t){2 * 0xf0000 + i + 2, 333};
+        TEST_ASSERT(logger_log_iv(&t, LOG_IV_CHG_BAT0, 180, 3700) >= 0);
+    }
+    // this should be one too many
+    timers_set_systime(2 * 0xf0000 + 149, 0);
+    abs_time_t t = (abs_time_t){2 * 0xf0000 + 149, 30};
+    TEST_ASSERT(logger_log_iv(&t, LOG_IV_CHG_BAT0, 12, 333) < 0);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_empty_log);
@@ -94,5 +115,6 @@ int main(void) {
     RUN_TEST(test_fail_add_logline_no_init);
     RUN_TEST(test_add_logline_after_timeout);
     RUN_TEST(test_log_into_next_page);
+    RUN_TEST(test_log_full);
     return UNITY_END();
 }
