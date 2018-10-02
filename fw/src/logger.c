@@ -140,7 +140,7 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
     }
     if (_header.status == HEADER_INIT
         && (when->sec < _header.timestamp_offset
-            || (when->sec + _header.timestamp_offset) > 0xffff)) {
+            || (when->sec - _header.timestamp_offset) > 0xffff)) {
         // that first situation reeks of someone messing with timekeeping
         // the second would be we've overtimed this page
         // sanity check: we're not going to serve time travellers
@@ -159,6 +159,17 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
         int err = logger_initpage(_seqnum);
         if (err) {
             // we assume we've filled up the logs entirely
+            return err * 4;
+        }
+    }
+    if (_seqnum > _header.seqnum_base + 127) {
+        // we're overflowing the current page, set up the next one
+        _header.status |= HEADER_OVF;
+        write_header(&_header, _page);
+        _page = (_page + 1) % N_LOG_PAGES;
+        read_header(_page, &_header);
+        int err = logger_initpage(_seqnum);
+        if (err) {
             return err * 4;
         }
     }
