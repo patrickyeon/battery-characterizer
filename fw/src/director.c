@@ -23,6 +23,8 @@ static int16_t _temp_for(dir_state_e channel) {
     case DENB:
         return temperature_read(director.dirB == CHG_DISCHG ? TSENS3 : TSENS2);
     }
+    // shouldn't end up here, but here's a nonsense temperature
+    return 0xffff;
 }
 
 static uint16_t _voltage_for(dir_state_e channel) {
@@ -36,6 +38,8 @@ static uint16_t _voltage_for(dir_state_e channel) {
     case DENB:
         return adc_read(director.dirB == CHG_DISCHG ? CHAN_VB3 : CHAN_VB2);
     }
+    // shouldn't end up here
+    return 0xffff;
 }
 
 static void _disable(dir_state_e which) {

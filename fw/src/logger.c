@@ -27,7 +27,6 @@ typedef struct header_t {
      uint8_t status; // bitmask of header_status_e flags
      uint8_t last_seqnum;
 } header_t;
-static header_t _header;
 
 // Reconstructing the seqnum and timestamp of a log item is:
 //   uint32_t seconds_since_epoch = timestame_offset + timestamp;

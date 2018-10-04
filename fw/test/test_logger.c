@@ -52,7 +52,6 @@ void test_add_logline_after_timeout(void) {
     TEST_ASSERT_EQUAL(1, logger_log_iv(&now, LOG_IV_CHG_BAT0, 600, 4200));
 
     log_msg_t buff;
-    uint16_t mv, ma;
     TEST_ASSERT_EQUAL(0, logger_read(1, &buff));
     _equal_iv_logmsg(1, 0xf0000, LOG_IV_CHG_BAT0, 600, 4200, buff);
     return;
@@ -69,7 +68,6 @@ void test_log_into_next_page(void) {
     }
 
     log_msg_t buff;
-    uint16_t mv, ma;
 
     for (int i = 0; i < 130; i++) {
         TEST_ASSERT_EQUAL(0, logger_read(i, &buff));

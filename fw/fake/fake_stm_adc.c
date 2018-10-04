@@ -12,7 +12,7 @@ void stm_adc_init(uint8_t nChan, uint8_t channels[], enum adc_opmode opmode) {
     assert(channels != NULL);
     assert(1 <= nChan && nChan <= 18);
     for (int i = 0; i < nChan; i++) {
-        assert(0 <= channels[i] <= 15);
+        assert(0 <= channels[i] && channels[i] <= 15);
         // temp, vref, vbat are 16, 17, 18 but not implemented
         valid_chans |= 1 << channels[i];
     }
