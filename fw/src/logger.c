@@ -167,6 +167,17 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
             return err * 4;
         }
     }
+    if (_seqnum > _header.seqnum_base + 127) {
+        // we're overflowing the current page, set up the next one
+        _header.status |= HEADER_OVF;
+        write_header(&_header, _page);
+        _page = (_page + 1) % N_LOG_PAGES;
+        read_header(_page, &_header);
+        int err = logger_initpage(_seqnum);
+        if (err) {
+            return err * 4;
+        }
+    }
 
     // ok we're in a good spot now
     uint32_t tstamp = when->sec - _header.timestamp_offset;
