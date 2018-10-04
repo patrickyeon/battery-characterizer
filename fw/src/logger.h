@@ -5,6 +5,13 @@
 
 #include <stdint.h>
 
+// the logger will have a very short list of things it can do, to reduce
+// complexity:
+// - log a thing (a logline)
+// - read an arbitrary logline, indexed by seqnum
+// - read and delete the oldest logline
+// - wipe the whole thing and start over
+
 typedef enum log_type_e {
     LOG_ERASED = 0,
     LOG_IV_CHG_BAT0,
@@ -20,12 +27,11 @@ typedef struct log_msg_t {
     uint8_t payload[4];
 } log_msg_t;
 
-int logger_init(void);
+void logger_init(void);
 uint16_t logger_len(void);
 int32_t logger_log_iv(abs_time_t *when, log_type_e what,
                       uint16_t ma, uint16_t mv);
 int logger_read(uint16_t seqnum, log_msg_t *buffer);
 void logger_payload_to_ma_mv(uint8_t *payload, uint16_t *ma, uint16_t *mv);
-int logger_initpage(uint16_t start_seqnum);
 
 #endif // LOGGER_H

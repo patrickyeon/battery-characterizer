@@ -15,6 +15,11 @@ uint8_t flash_read(uint32_t address, uint8_t *buff, size_t len) {
     return len;
 }
 
+uint8_t flash_peek(uint32_t address) {
+    assert(address <= MAX_ADDR);
+    return storage[address];
+}
+
 uint8_t flash_write(uint8_t *buff, uint32_t address, size_t len) {
     assert(address + len <= MAX_ADDR);
     for (int i = 0; i < len; i++) {
