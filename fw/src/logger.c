@@ -190,7 +190,7 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
             write_header(h, n_write.page);
         }
     }
-    if (_seqnum > h->seqnum_base + 127) {
+    if (_seqnum > h->seqnum_base + 126) {
         // we're overflowing the current page, set up the next one
         h->status |= HEADER_OVF;
         write_header(h, n_write.page);
@@ -199,7 +199,13 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
         //  page has been closed out for some reason. What the reason is doesn't
         // matter to us, only that we can't write here.
         if (_log[(n_write.page + 1 ) % N_LOG_PAGES].status == 0) {
-            // FIXME advance there
+            n_write.page = (n_write.page + 1) % N_LOG_PAGES;
+            n_write.offset = 0xff;
+            h = _log + n_write.page;
+            h->seqnum_base = _seqnum;
+            h->timestamp_offset = when->sec;
+            h->status = HEADER_INIT;
+            h->last_seqnum = 0xff;
         } else {
             // it's already been used, we're probably full up
             return -1;
@@ -222,7 +228,7 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
                       details[0], details[1], details[2], details[3],
                       0};
     buff[7] = crc(buff, 7);
-    h->last_seqnum = n_write.offset - h->seqnum_base;
+    h->last_seqnum = n_write.offset;
     flash_write(buff, log_addr(n_write.page, n_write.offset++), 8);
     return _seqnum++;
 }

@@ -5,6 +5,13 @@
 
 #include <stdint.h>
 
+// the logger will have a very short list of things it can do, to reduce
+// complexity:
+// - log a thing (a logline)
+// - read an arbitrary logline, indexed by seqnum
+// - read and delete the oldest logline
+// - wipe the whole thing and start over
+
 typedef enum log_type_e {
     LOG_ERASED = 0,
     LOG_IV_CHG_BAT0,
