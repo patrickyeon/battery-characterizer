@@ -40,7 +40,6 @@ static header_t _header;
 // on overflow.
 
 static uint32_t _seqnum;
-static int _page = -1;
 
 static void write_header(header_t *h, int npage);
 static void read_header(int npage, header_t *h);
@@ -57,6 +56,17 @@ static struct log_ptr_t {
     uint8_t offset;
 } n_write={-1, 0}, n_read = {-1, 0};
 
+static inline uint32_t header_addr(uint8_t npage) {
+    assert(npage < N_LOG_PAGES);
+    return LOG_BASE + npage * FLASH_PAGESIZE;
+}
+
+static inline uint32_t log_addr(uint8_t npage, uint8_t nline) {
+    assert(npage < N_LOG_PAGES);
+    assert(nline <= 126);
+    return LOG_BASE + npage * FLASH_PAGESIZE + (nline + 1) * 8;
+}
+
 void logger_init(void) {
     n_write = (struct log_ptr_t){-1, 0};
     n_read = (struct log_ptr_t){-1, 0};
@@ -72,7 +82,7 @@ void logger_init(void) {
             int lo = 0, hi = 126;
             while (hi - lo > 1) {
                 int mid = (hi + lo) / 2;
-                if (flash_peek(LOG_BASE + i * FLASH_PAGESIZE + (mid + 1) * 8 + 3) != 0xff) {
+                if (flash_peek(log_addr(i, mid) + 3) != 0xff) {
                     lo = mid;
                 } else {
                     hi = mid;
@@ -133,13 +143,13 @@ static void write_header(header_t *h, int npage) {
                       h->timestamp_offset >> 8, h->timestamp_offset & 0xff,
                       ~h->status,
                       h->last_seqnum};
-    flash_write(buff, LOG_BASE + npage * FLASH_PAGESIZE, 8);
+    flash_write(buff, header_addr(npage), 8);
 }
 
 static void read_header(int npage, header_t *h) {
     assert(0 <= npage && npage < N_LOG_PAGES);
     uint8_t buff[8];
-    flash_read(LOG_BASE + npage * FLASH_PAGESIZE, buff, 8);
+    flash_read(header_addr(npage), buff, 8);
     h->seqnum_base = ((uint16_t)buff[0] << 8) | buff[1];
     h->timestamp_offset = (((uint32_t)buff[2] << 24) 
                            | ((uint32_t)buff[3] << 16)
@@ -185,16 +195,14 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
         h->status |= HEADER_OVF;
         write_header(h, n_write.page);
     }
-    if (_header.status != HEADER_INIT) {
+    if (h->status != HEADER_INIT) {
         //  page has been closed out for some reason. What the reason is doesn't
         // matter to us, only that we can't write here.
-        //FIXME advance to next page
-        _page = (_page + 1) % N_LOG_PAGES;
-        read_header(_page, &_header);
-        int err = 0;
-        if (err) {
-            // we assume we've filled up the logs entirely
-            return err * 4;
+        if (_log[(n_write.page + 1 ) % N_LOG_PAGES].status == 0) {
+            // FIXME advance there
+        } else {
+            // it's already been used, we're probably full up
+            return -1;
         }
     }
     if (n_write.offset == 0xff) {
@@ -204,6 +212,7 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
         h->last_seqnum = 0xff;
         write_header(h, n_write.page);
         h->last_seqnum = 0;
+        n_write.offset = 0;
     }
 
     // ok we're in a good spot now
@@ -213,8 +222,8 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
                       details[0], details[1], details[2], details[3],
                       0};
     buff[7] = crc(buff, 7);
-    uint32_t addr = LOG_BASE + _page * FLASH_PAGESIZE + n_write.offset++;
-    flash_write(buff, addr, 8);
+    h->last_seqnum = n_write.offset - h->seqnum_base;
+    flash_write(buff, log_addr(n_write.page, n_write.offset++), 8);
     return _seqnum++;
 }
 
@@ -225,20 +234,17 @@ int32_t logger_log_iv(abs_time_t *when, log_type_e what,
 }
 
 int logger_read(uint16_t seqnum, log_msg_t *buffer) {
-    // TODO maybe cache headers so that we don't re-read every time
     for (int i = 0; i < N_LOG_PAGES; i++) {
-        header_t h;
-        read_header(i, &h);
-        if (h.status & HEADER_INIT) {
-            uint16_t offset = seqnum - h.seqnum_base;
-            if (seqnum >= h.seqnum_base && offset <= 127) {
-                // that seqnum could conceivably be in this page
+        header_t *h = _log + i;
+        if (h->status & HEADER_INIT) {
+            uint16_t offset = seqnum - h->seqnum_base;
+            if (seqnum >= h->seqnum_base && offset <= h->last_seqnum) {
+                // that seqnum should be in this page
                 uint8_t buff[8];
-                uint32_t addr = LOG_BASE + i * FLASH_PAGESIZE + (offset + 1)* 8;
-                flash_read(addr, buff, 8);
+                flash_read(log_addr(i, offset), buff, 8);
                 if (buff[3] != LOG_UNWRITTEN) {
                     buffer->seqnum = seqnum;
-                    buffer->timestamp = (h.timestamp_offset
+                    buffer->timestamp = (h->timestamp_offset
                                          + ((uint32_t)buff[0] << 8) + buff[1]);
                     buffer->type = buff[2];
                     for (int j = 0; j < 4; j++) {
