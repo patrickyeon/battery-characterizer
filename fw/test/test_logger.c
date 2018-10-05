@@ -95,6 +95,30 @@ void test_log_full(void) {
     TEST_ASSERT(logger_log_iv(&t, LOG_IV_CHG_BAT0, 12, 333) < 0);
 }
 
+void test_dequeue_simple(void) {
+    setup();
+    logger_init();
+    for (int i = 0; i < 5; i++) {
+        timers_set_systime(i, 0);
+        abs_time_t now = (abs_time_t){i, 334};
+        logger_log_iv(&now, LOG_IV_CHG_BAT0, 1600 + i, 4000 - i);
+    }
+    
+    log_msg_t buff;
+    for (int i = 0; i < 5; i++) {
+        TEST_ASSERT_EQUAL(0, logger_dequeue(&buff));
+        _equal_iv_logmsg(i, i, LOG_IV_CHG_BAT0, 1600 + i, 4000 - i, buff);
+    }
+    TEST_ASSERT(logger_dequeue(&buff) < 0);
+}
+
+void test_dequeue_empty_log(void) {
+    setup();
+    logger_init();
+    log_msg_t buff;
+    TEST_ASSERT(logger_dequeue(&buff) < 0);
+}
+
 int main(void) {
     UNITY_BEGIN();
     // this needs to run first because the logger is stateful :/
@@ -103,5 +127,7 @@ int main(void) {
     RUN_TEST(test_add_logline_after_timeout);
     RUN_TEST(test_log_into_next_page);
     RUN_TEST(test_log_full);
+    RUN_TEST(test_dequeue_simple);
+    RUN_TEST(test_dequeue_empty_log);
     return UNITY_END();
 }

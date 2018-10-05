@@ -2,6 +2,7 @@
 #include "../driver/flash.h"
 
 #include <assert.h>
+#include <stdbool.h>
 
 //FIXME real addresses
 #define LOG_BASE 0
@@ -96,7 +97,7 @@ void logger_init(void) {
         if (n_write.page == 0) {
             //  go backwards to find the last written page, from where we can
             // correct for wrap issues if they exist
-            for (int i = N_LOG_PAGES - 1; i <= 0; i--) {
+            for (int i = N_LOG_PAGES - 1; i >= 0; i--) {
                 if (_log[i].status != 0) {
                     n_write.page = (i + N_LOG_PAGES - 1) % N_LOG_PAGES;
                     break;
@@ -124,11 +125,14 @@ void logger_init(void) {
     }
     // n_write.page = page for next write, or -1 if full
 
-    uint16_t oldest = 0xffff;
-    for (int i = 0; i < N_LOG_PAGES; i++) {
-        if ((_log[i].status | HEADER_INIT) && (_log[i].seqnum_base < oldest)) {
-            oldest = _log[i].seqnum_base;
-            n_read.page = i;
+    if (n_write.page < 0) {
+        uint16_t oldest = 0xffff;
+        for (int i = 0; i < N_LOG_PAGES; i++) {
+            if ((_log[i].status | HEADER_INIT)
+                && (_log[i].seqnum_base < oldest)) {
+                oldest = _log[i].seqnum_base;
+                n_read.page = i;
+            }
         }
     }
     // n_read.page = page for next read (oldest logline), or -1 if empty
@@ -229,6 +233,10 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
     buff[7] = crc(buff, 7);
     h->last_seqnum = n_write.offset;
     flash_write(buff, log_addr(n_write.page, n_write.offset++), 8);
+    if (n_read.page < 0) {
+        n_read.page = n_write.page;
+        n_read.offset = n_write.offset - 1;
+    }
     return _seqnum++;
 }
 
@@ -238,6 +246,23 @@ int32_t logger_log_iv(abs_time_t *when, log_type_e what,
     return _logline(when, what, payload);
 }
 
+static int logline_read(uint8_t page, uint8_t offset, log_msg_t *buffer) {
+    header_t *h = _log + page;
+    uint8_t buff[8];
+    flash_read(log_addr(page, offset), buff, 8);
+    if (buff[3] != LOG_UNWRITTEN && buff[3] != LOG_ERASED) {
+        buffer->seqnum = h->seqnum_base + offset;
+        buffer->timestamp = (h->timestamp_offset + ((uint32_t)buff[0] << 8)
+                             + buff[1]);
+        buffer->type = buff[2];
+        for (int j = 0; j < 4; j++) {
+            buffer->payload[j] = buff[3 + j];
+        }
+        return 0;
+    }
+    return -1;
+}
+
 int logger_read(uint16_t seqnum, log_msg_t *buffer) {
     for (int i = 0; i < N_LOG_PAGES; i++) {
         header_t *h = _log + i;
@@ -245,18 +270,7 @@ int logger_read(uint16_t seqnum, log_msg_t *buffer) {
             uint16_t offset = seqnum - h->seqnum_base;
             if (seqnum >= h->seqnum_base && offset <= h->last_seqnum) {
                 // that seqnum should be in this page
-                uint8_t buff[8];
-                flash_read(log_addr(i, offset), buff, 8);
-                if (buff[3] != LOG_UNWRITTEN) {
-                    buffer->seqnum = seqnum;
-                    buffer->timestamp = (h->timestamp_offset
-                                         + ((uint32_t)buff[0] << 8) + buff[1]);
-                    buffer->type = buff[2];
-                    for (int j = 0; j < 4; j++) {
-                        buffer->payload[j] = buff[3 + j];
-                    }
-                    return 0;
-                }
+                return logline_read(i, offset, buffer);
             }
         }
     }
@@ -266,4 +280,60 @@ int logger_read(uint16_t seqnum, log_msg_t *buffer) {
 void logger_payload_to_ma_mv(uint8_t *payload, uint16_t *ma, uint16_t *mv) {
     *ma = ((uint16_t)(payload[0]) << 8) | payload[1];
     *mv = ((uint16_t)(payload[2]) << 8) | payload[3];
+}
+
+int logger_dequeue(log_msg_t *buffer) {
+    if (n_read.page < 0) {
+        return -1;
+    }
+    while ((n_read.page != n_write.page)
+           || (n_read.page == n_write.page && n_read.offset < n_write.offset)) {
+        uint8_t type = flash_peek(log_addr(n_read.page, n_read.offset) + 3);
+        if (type != LOG_UNWRITTEN && type != LOG_ERASED) {
+            break;
+        }
+        if (++n_read.offset >= 127) {
+            // erase that page, update header in _log
+            flash_erase(n_read.page);
+            _log[n_read.page] = (header_t){0xffff, 0xffffffff, 0, 0xff};
+
+            bool found = false;
+            for (int i = 0; i < N_LOG_PAGES; i++) {
+                int npage = (n_read.page + i) % N_LOG_PAGES;
+                if (_log[npage].status | HEADER_INIT) {
+                    n_read.page = npage;
+                    n_read.offset = 0;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                n_read.page = -1;
+                n_read.offset = 0;
+                return -1;
+            }
+        }
+    }
+    int retval = logline_read(n_read.page, n_read.offset, buffer);
+    if (retval == 0) {
+        uint8_t zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+        flash_write(zeros, log_addr(n_read.page, n_read.offset), 8);
+    }
+    if (++n_read.offset >= 127) {
+        // advance to the next page
+        bool found = false;
+        for (int i = 0; i < N_LOG_PAGES; i++) {
+            int npage = (n_read.page + i) % N_LOG_PAGES;
+            if (_log[npage].status | HEADER_INIT) {
+                n_read.page = npage;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            n_read.page = -1;
+        }
+        n_read.offset = 0;
+    }
+    return retval;
 }

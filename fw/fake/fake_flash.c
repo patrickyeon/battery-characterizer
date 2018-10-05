@@ -34,3 +34,11 @@ void fake_flash_init(void) {
         storage[i] = 0xff;
     }
 }
+
+int flash_erase(uint8_t page) {
+    assert(page < (MAX_ADDR + 1) / FLASH_PAGESIZE);
+    for(int i = page * FLASH_PAGESIZE; i < (page + 1) * FLASH_PAGESIZE; i++) {
+        storage[i] = 0xff;
+    }
+    return 0;
+}
