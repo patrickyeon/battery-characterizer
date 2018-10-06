@@ -54,7 +54,7 @@ static uint8_t crc(uint8_t *buff, uint8_t len) {
 static struct log_ptr_t {
     int page;
     uint8_t offset;
-} n_write={-1, 0}, n_read = {-1, 0};
+} n_write = {-1, 0xff}, n_read = {-1, 0};
 
 static inline uint32_t header_addr(uint8_t npage) {
     assert(npage < N_LOG_PAGES);
@@ -70,6 +70,7 @@ static inline uint32_t log_addr(uint8_t npage, uint8_t nline) {
 void logger_init(void) {
     n_write = (struct log_ptr_t){-1, 0xff};
     n_read = (struct log_ptr_t){-1, 0};
+    // read in all the pages' headers, noting the first empty one for writing
     for (int i = 0; i < N_LOG_PAGES; i++) {
         read_header(i, _log + i);
         if (n_write.page < 0 && _log[i].status == 0) {
@@ -82,7 +83,7 @@ void logger_init(void) {
             int lo = 0, hi = 126;
             while (hi - lo > 1) {
                 int mid = (hi + lo) / 2;
-                if (flash_peek(log_addr(i, mid) + 3) != 0xff) {
+                if (flash_peek(log_addr(i, mid) + 3) != LOG_UNWRITTEN) {
                     lo = mid;
                 } else {
                     hi = mid;
@@ -92,6 +93,7 @@ void logger_init(void) {
             write_header(_log + i, i);
         }
     }
+
     if (n_write.page >= 0) {
         // we've found an empty page we can init and write to
         if (n_write.page == 0) {
@@ -99,25 +101,28 @@ void logger_init(void) {
             // correct for wrap issues if they exist
             for (int i = N_LOG_PAGES - 1; i >= 0; i--) {
                 if (_log[i].status != 0) {
-                    n_write.page = (i + N_LOG_PAGES - 1) % N_LOG_PAGES;
+                    n_write.page = (i + 1) % N_LOG_PAGES;
                     break;
                 }
             }
         }
+        //  Find the next non-empty page after our empty one. That's where we
+        // start reading from.
         for (int i = n_write.page + 1; i < n_write.page + N_LOG_PAGES; i++) {
             if (_log[i % N_LOG_PAGES].status != 0) {
                 n_read.page = i % N_LOG_PAGES;
                 break;
             }
         }
+        //  If there's a previous page, we continue seqnum from there
         header_t *h = _log + ((n_write.page + N_LOG_PAGES - 1) % N_LOG_PAGES);
         if (h->status != 0) {
             _seqnum = h->seqnum_base + h->last_seqnum + 1;
         } else {
             _seqnum = 0;
         }
+        // init the write header properly
         h = _log + n_write.page;
-        // init the header properly
         h->seqnum_base = _seqnum;
         h->timestamp_offset = systime().sec;
         h->status = HEADER_INIT;
@@ -126,9 +131,11 @@ void logger_init(void) {
     // n_write.page = page for next write, or -1 if full
 
     if (n_write.page < 0) {
+        //  in the case that our log was full, prepare to start reading out at
+        // the lowest seqnum we've logged.
         uint16_t oldest = 0xffff;
         for (int i = 0; i < N_LOG_PAGES; i++) {
-            if ((_log[i].status | HEADER_INIT)
+            if ((_log[i].status & HEADER_INIT)
                 && (_log[i].seqnum_base < oldest)) {
                 oldest = _log[i].seqnum_base;
                 n_read.page = i;
@@ -173,18 +180,18 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
         || (when->sec - h->timestamp_offset) > 0xffff) {
         // that first situation reeks of someone messing with timekeeping
         // the second would be we've overtimed this page
-        // sanity check: we're not going to serve time travellers
         if (when->sec > systime().sec + 1) {
+            // sanity check: we're not going to serve time travellers
             return -2;
         }
         if (n_write.offset == 0xff) {
-            // we never actually used this header. re-init it
+            // we never actually used this header. re-init and use it
             h->seqnum_base = _seqnum;
             h->timestamp_offset = systime().sec;
             h->status = HEADER_INIT;
             h->last_seqnum = 0xff;
         } else {
-            // we've timed out and need to flush this
+            // we've timed out and need to flush this header
             h->status |= HEADER_TIMEOUT;
             write_header(h, n_write.page);
         }
@@ -206,7 +213,7 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
             h->status = HEADER_INIT;
             h->last_seqnum = 0xff;
         } else {
-            // it's already been used, we're probably full up
+            // The next page has already been used, we're probably full up
             return -1;
         }
     }
@@ -228,11 +235,12 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
                       0};
     buff[7] = crc(buff, 7);
     h->last_seqnum = n_write.offset;
-    flash_write(buff, log_addr(n_write.page, n_write.offset++), 8);
+    flash_write(buff, log_addr(n_write.page, n_write.offset), 8);
     if (n_read.page < 0) {
         n_read.page = n_write.page;
-        n_read.offset = n_write.offset - 1;
+        n_read.offset = n_write.offset;
     }
+    n_write.offset++;
     return _seqnum++;
 }
 
@@ -277,7 +285,7 @@ static int logline_read(uint8_t page, uint8_t offset, log_msg_t *buffer) {
     if (buff[3] != LOG_UNWRITTEN && buff[3] != LOG_ERASED) {
         buffer->seqnum = h->seqnum_base + offset;
         buffer->timestamp = (h->timestamp_offset + ((uint32_t)buff[0] << 8)
-                             + buff[1]);
+                             + ((uint32_t)buff[1] & 0xff));
         buffer->type = buff[2];
         for (int j = 0; j < 4; j++) {
             buffer->payload[j] = buff[3 + j];
@@ -305,6 +313,10 @@ int logger_dequeue(log_msg_t *buffer) {
     if (n_read.page < 0) {
         return -1;
     }
+
+    //  Find the next logline to read, skipping over unwritten or erased
+    // loglines, stopping when we've caught up to the spot for the next logline
+    // that will be written.
     while ((n_read.page != n_write.page)
            || (n_read.page == n_write.page && n_read.offset < n_write.offset)) {
         uint8_t type = flash_peek(log_addr(n_read.page, n_read.offset) + 3);
@@ -312,14 +324,17 @@ int logger_dequeue(log_msg_t *buffer) {
             break;
         }
         if (++n_read.offset >= 127) {
-            // erase that page, update header in _log
+            // We've scanned through a page, erase it and update header in _log
             flash_erase(n_read.page);
             _log[n_read.page] = (header_t){0xffff, 0xffffffff, 0, 0xff};
             if (n_write.page < 0) {
+                //  We were blocking writes, because we had nowhere to go. Open
+                // up for writes again.
                 n_write.page = n_read.page;
                 n_write.offset = 0xff;
             }
 
+            // look for the next page we can read from
             bool found = false;
             for (int i = 0; i < N_LOG_PAGES; i++) {
                 int npage = (n_read.page + i) % N_LOG_PAGES;
@@ -331,14 +346,17 @@ int logger_dequeue(log_msg_t *buffer) {
                 }
             }
             if (!found) {
+                // flag that we've got nothing left to read
                 n_read.page = -1;
                 n_read.offset = 0;
                 return -1;
             }
         }
     }
+
     int retval = logline_read(n_read.page, n_read.offset, buffer);
     if (retval == 0) {
+        // erase that line from the log
         uint8_t zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
         flash_write(zeros, log_addr(n_read.page, n_read.offset), 8);
     }
