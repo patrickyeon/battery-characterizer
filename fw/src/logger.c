@@ -68,7 +68,7 @@ static inline uint32_t log_addr(uint8_t npage, uint8_t nline) {
 }
 
 void logger_init(void) {
-    n_write = (struct log_ptr_t){-1, 0};
+    n_write = (struct log_ptr_t){-1, 0xff};
     n_read = (struct log_ptr_t){-1, 0};
     for (int i = 0; i < N_LOG_PAGES; i++) {
         read_header(i, _log + i);
@@ -106,13 +106,13 @@ void logger_init(void) {
         }
         for (int i = n_write.page + 1; i < n_write.page + N_LOG_PAGES; i++) {
             if (_log[i % N_LOG_PAGES].status != 0) {
-                n_read.page = i;
+                n_read.page = i % N_LOG_PAGES;
                 break;
             }
         }
         header_t *h = _log + ((n_write.page + N_LOG_PAGES - 1) % N_LOG_PAGES);
         if (h->status != 0) {
-            _seqnum = h->seqnum_base + h->last_seqnum;
+            _seqnum = h->seqnum_base + h->last_seqnum + 1;
         } else {
             _seqnum = 0;
         }
@@ -296,11 +296,15 @@ int logger_dequeue(log_msg_t *buffer) {
             // erase that page, update header in _log
             flash_erase(n_read.page);
             _log[n_read.page] = (header_t){0xffff, 0xffffffff, 0, 0xff};
+            if (n_write.page < 0) {
+                n_write.page = n_read.page;
+                n_write.offset = 0xff;
+            }
 
             bool found = false;
             for (int i = 0; i < N_LOG_PAGES; i++) {
                 int npage = (n_read.page + i) % N_LOG_PAGES;
-                if (_log[npage].status | HEADER_INIT) {
+                if (_log[npage].status & HEADER_INIT) {
                     n_read.page = npage;
                     n_read.offset = 0;
                     found = true;
@@ -319,21 +323,37 @@ int logger_dequeue(log_msg_t *buffer) {
         uint8_t zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
         flash_write(zeros, log_addr(n_read.page, n_read.offset), 8);
     }
-    if (++n_read.offset >= 127) {
-        // advance to the next page
-        bool found = false;
-        for (int i = 0; i < N_LOG_PAGES; i++) {
-            int npage = (n_read.page + i) % N_LOG_PAGES;
-            if (_log[npage].status | HEADER_INIT) {
-                n_read.page = npage;
-                found = true;
-                break;
+    n_read.offset++;
+    if (n_read.page != n_write.page) {
+        if (n_read.offset >= 127
+            || n_read.offset > _log[n_read.page].last_seqnum) {
+            // clear out that log entry, erase the page
+            flash_erase(n_read.page);
+            _log[n_read.page] = (header_t){0xffff, 0xffffffff, 0, 0xff};
+            if (n_write.page < 0) {
+                n_write.page = n_read.page;
+                n_write.offset = 0xff;
             }
+            // advance to the next page
+            bool found = false;
+            for (int i = 1; i < N_LOG_PAGES; i++) {
+                int npage = (n_read.page + i) % N_LOG_PAGES;
+                if (_log[npage].status & HEADER_INIT) {
+                    n_read.page = npage;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                n_read.page = -1;
+            }
+            n_read.offset = 0;
         }
-        if (!found) {
+    } else {
+        if (n_read.offset == n_write.offset) {
             n_read.page = -1;
+            n_read.offset = 0;
         }
-        n_read.offset = 0;
     }
     return retval;
 }

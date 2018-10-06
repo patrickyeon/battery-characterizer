@@ -20,6 +20,18 @@ void _equal_iv_logmsg(uint16_t exp_seqnum, uint32_t exp_time, uint8_t exp_type,
     TEST_ASSERT_EQUAL(exp_mv, got_mv);
 }
 
+int add_many_lines(int start_i, int end_i, int ma, int mv) {
+    for (int i = start_i; i <= end_i; i++) {
+        timers_set_systime(i, 0);
+        abs_time_t now = (abs_time_t){i, 0};
+        int err = logger_log_iv(&now, LOG_IV_CHG_BAT0, ma - i, mv + i);
+        if (err < 0) {
+            return err;
+        }
+    }
+    return 0;
+}
+
 void test_add_logline(void) {
     setup();
     logger_init();
@@ -98,16 +110,12 @@ void test_log_full(void) {
 void test_dequeue_simple(void) {
     setup();
     logger_init();
-    for (int i = 0; i < 5; i++) {
-        timers_set_systime(i, 0);
-        abs_time_t now = (abs_time_t){i, 334};
-        logger_log_iv(&now, LOG_IV_CHG_BAT0, 1600 + i, 4000 - i);
-    }
+    add_many_lines(0, 4, 1600, 4000);
     
     log_msg_t buff;
     for (int i = 0; i < 5; i++) {
         TEST_ASSERT_EQUAL(0, logger_dequeue(&buff));
-        _equal_iv_logmsg(i, i, LOG_IV_CHG_BAT0, 1600 + i, 4000 - i, buff);
+        _equal_iv_logmsg(i, i, LOG_IV_CHG_BAT0, 1600 - i, 4000 + i, buff);
     }
     TEST_ASSERT(logger_dequeue(&buff) < 0);
 }
@@ -117,6 +125,56 @@ void test_dequeue_empty_log(void) {
     logger_init();
     log_msg_t buff;
     TEST_ASSERT(logger_dequeue(&buff) < 0);
+}
+
+void test_dequeue_through_unfilled_page(void) {
+    setup();
+    logger_init();
+    add_many_lines(0, 4, 1600, 4000);
+    // reset, so that it'll have to bump to the next page
+    logger_init();
+    add_many_lines(5, 9, 1600, 4000);
+
+    log_msg_t buff;
+    for (int i = 0; i < 10; i++) {
+        TEST_ASSERT_EQUAL(0, logger_dequeue(&buff));
+        _equal_iv_logmsg(i, i, LOG_IV_CHG_BAT0, 1600 - i, 4000 + i, buff);
+    }
+    TEST_ASSERT(logger_dequeue(&buff) < 0);
+}
+
+void test_log_after_dequeueing_all(void) {
+    setup();
+    logger_init();
+    add_many_lines(0, 4, 1600, 3500);
+    log_msg_t buff;
+    for (int i = 0; i < 5; i++) {
+        logger_dequeue(&buff);
+    }
+
+    timers_set_systime(6, 0);
+    abs_time_t now = (abs_time_t){6, 7};
+    TEST_ASSERT_EQUAL(5, logger_log_iv(&now, LOG_IV_CHG_BAT0, 1200, 3800));
+    TEST_ASSERT_EQUAL(0, logger_dequeue(&buff));
+    _equal_iv_logmsg(5, 6, LOG_IV_CHG_BAT0, 1200, 3800, buff);
+}
+
+void test_fill_log_then_dequeue_to_free_space(void) {
+    setup();
+    logger_init();
+    add_many_lines(0, 4, 1600, 3500);
+    logger_init();
+    add_many_lines(5, 9, 1600, 3500);
+    logger_init();
+    add_many_lines(10, 15, 1600, 3500);
+    logger_init();
+    abs_time_t now = systime();
+    TEST_ASSERT(logger_log_iv(&now, LOG_IV_CHG_BAT0, 1200, 3200) < 0);
+    for (int i = 0; i < 5; i++) {
+        log_msg_t buff;
+        logger_dequeue(&buff);
+    }
+    TEST_ASSERT_EQUAL(16, logger_log_iv(&now, LOG_IV_CHG_BAT0, 1200, 3200));
 }
 
 int main(void) {
@@ -129,5 +187,8 @@ int main(void) {
     RUN_TEST(test_log_full);
     RUN_TEST(test_dequeue_simple);
     RUN_TEST(test_dequeue_empty_log);
+    RUN_TEST(test_dequeue_through_unfilled_page);
+    RUN_TEST(test_log_after_dequeueing_all);
+    RUN_TEST(test_fill_log_then_dequeue_to_free_space);
     return UNITY_END();
 }
