@@ -3,9 +3,16 @@
 #include "../src/timers.h"
 #include "../fake/fake_flash.h"
 
+#include <stdint.h>
+
 void setup(void) {
     timers_set_systime(0, 0);
     fake_flash_init();
+}
+
+void logger_payload_to_ma_mv(uint8_t *payload, uint16_t *ma, uint16_t *mv) {
+    *ma = ((uint16_t)(payload[0]) << 8) | payload[1];
+    *mv = ((uint16_t)(payload[2]) << 8) | payload[3];
 }
 
 void _equal_iv_logmsg(uint16_t exp_seqnum, uint32_t exp_time, uint8_t exp_type,

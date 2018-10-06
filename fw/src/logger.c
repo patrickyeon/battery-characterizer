@@ -162,10 +162,6 @@ static void read_header(int npage, header_t *h) {
     h->last_seqnum = buff[7];
 }
 
-uint16_t logger_len(void) {
-    return 0;
-}
-
 static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
     if (n_write.page < 0) {
         // we've got nowhere to write
@@ -246,6 +242,34 @@ int32_t logger_log_iv(abs_time_t *when, log_type_e what,
     return _logline(when, what, payload);
 }
 
+int32_t logger_log_stat(abs_time_t *when, log_type_e what, uint8_t stat_flags) {
+    uint8_t payload[4] = {0, 0, 0, stat_flags};
+    return _logline(when, what, payload);
+}
+
+int32_t logger_log_temp_stat(abs_time_t *when, log_type_e what, int16_t temp,
+                             uint8_t stat_flags) {
+    uint8_t payload[4] = {temp >> 8, temp & 0xff, 0, stat_flags};
+    return _logline(when, what, payload);
+}
+
+int32_t logger_log_user(abs_time_t *when, uint32_t msg) {
+    uint8_t payload[4] = {(msg >> 24) & 0xff, (msg >> 16) & 0xff,
+                          (msg >> 8) & 0xff, msg & 0xff};
+    return _logline(when, LOG_USER_MSG, payload);
+}
+
+int32_t logger_log_timesync(abs_time_t *when, int32_t delta_ms) {
+    uint8_t payload[4] = {(delta_ms >> 24) & 0xff, (delta_ms >> 16) & 0xff,
+                          (delta_ms >> 8) & 0xff, delta_ms & 0xff};
+    return _logline(when, LOG_TIME_SYNC, payload);
+}
+
+int32_t logger_log_error(abs_time_t *when, uint8_t err) {
+    uint8_t payload[4] = {0, 0, 0, err};
+    return _logline(when, LOG_ERR, payload);
+}
+
 static int logline_read(uint8_t page, uint8_t offset, log_msg_t *buffer) {
     header_t *h = _log + page;
     uint8_t buff[8];
@@ -275,11 +299,6 @@ int logger_read(uint16_t seqnum, log_msg_t *buffer) {
         }
     }
     return -1;
-}
-
-void logger_payload_to_ma_mv(uint8_t *payload, uint16_t *ma, uint16_t *mv) {
-    *ma = ((uint16_t)(payload[0]) << 8) | payload[1];
-    *mv = ((uint16_t)(payload[2]) << 8) | payload[3];
 }
 
 int logger_dequeue(log_msg_t *buffer) {
