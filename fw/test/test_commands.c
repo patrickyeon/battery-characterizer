@@ -3,7 +3,8 @@
 #include "../driver/usb.h"
 #include "../fake/fake_usb.h"
 
-#define pkt_sz 8
+#define cmd_sz 8
+#define rsp_sz 10
 
 void setup(void) {
     usb_init();
@@ -13,62 +14,73 @@ void setup(void) {
 
 void test_ping(void) {
     setup();
-    uint8_t packet[pkt_sz] = {CMD_STARTBYTE, CMD_PING, 0, 0, 0, 0, 0, 0};
-    fake_usb_tx(packet, pkt_sz);
+    uint8_t packet[cmd_sz] = {CMD_STARTBYTE, CMD_PING};
+    fake_usb_tx(packet, cmd_sz);
     commands_process();
-    uint8_t resp[pkt_sz] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    TEST_ASSERT_EQUAL(pkt_sz, fake_usb_rx(resp, pkt_sz));
+    uint8_t resp[rsp_sz];
+    for (int i = 0; i < rsp_sz; i++) {
+        resp[i] = 0xff;
+    }
+    TEST_ASSERT_EQUAL(rsp_sz, fake_usb_rx(resp, rsp_sz));
     TEST_ASSERT_EQUAL(CMD_STARTBYTE, resp[0]);
-    TEST_ASSERT_EQUAL(RESP_PONG, resp[1]);
+    TEST_ASSERT_EQUAL(CMD_PONG, resp[1]);
     // make sure nothing else sneaks onto the queue
-    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, pkt_sz));
+    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, rsp_sz));
     commands_process();
     commands_process();
-    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, pkt_sz));
+    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, rsp_sz));
 }
 
 void test_split_packet(void) {
     setup();
-    uint8_t packet[pkt_sz] = {CMD_STARTBYTE, CMD_PING, 0, 0, 0, 0, 0, 0};
-    uint8_t resp[pkt_sz] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    uint8_t packet[cmd_sz] = {CMD_STARTBYTE, CMD_PING};
+    uint8_t resp[rsp_sz];
+    for (int i = 0; i < rsp_sz; i++) {
+        resp[i] = 0xff;
+    }
     fake_usb_tx(packet, 2);
     commands_process();
-    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, pkt_sz));
-    fake_usb_tx(packet + 2, pkt_sz - 2);
+    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, rsp_sz));
+    fake_usb_tx(packet + 2, cmd_sz - 2);
     commands_process();
-    TEST_ASSERT_EQUAL(pkt_sz, fake_usb_rx(resp, pkt_sz));
+    TEST_ASSERT_EQUAL(rsp_sz, fake_usb_rx(resp, rsp_sz));
     TEST_ASSERT_EQUAL(CMD_STARTBYTE, resp[0]);
-    TEST_ASSERT_EQUAL(RESP_PONG, resp[1]);
+    TEST_ASSERT_EQUAL(CMD_PONG, resp[1]);
 }
 
 void test_ignore_noise(void) {
     setup();
-    uint8_t packet[pkt_sz + 4] = {0, 0xff, (uint8_t)~CMD_STARTBYTE, 0,
-                                  CMD_STARTBYTE, CMD_PING, 0, 0, 0, 0, 0, 0};
-    uint8_t resp[pkt_sz] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    fake_usb_tx(packet, pkt_sz + 4);
+    uint8_t packet[cmd_sz + 4] = {0, 0xff, (uint8_t)~CMD_STARTBYTE, 0,
+                                  CMD_STARTBYTE, CMD_PING};
+    uint8_t resp[rsp_sz];
+    for (int i = 0; i < rsp_sz; i++) {
+        resp[i] = 0xff;
+    }
+    fake_usb_tx(packet, cmd_sz + 4);
     commands_process();
-    TEST_ASSERT_EQUAL(pkt_sz, fake_usb_rx(resp, pkt_sz));
+    TEST_ASSERT_EQUAL(rsp_sz, fake_usb_rx(resp, rsp_sz));
     TEST_ASSERT_EQUAL(CMD_STARTBYTE, resp[0]);
-    TEST_ASSERT_EQUAL(RESP_PONG, resp[1]);
+    TEST_ASSERT_EQUAL(CMD_PONG, resp[1]);
     commands_process();
-    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, pkt_sz));
+    TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, rsp_sz));
 }
 
 void test_ignore_false_packet(void) {
     setup();
-    uint8_t packet[pkt_sz + 4] = {CMD_STARTBYTE, CMD_PING, 0, 0,
-                                  CMD_STARTBYTE, CMD_TAG, 0, 7, 0, 0, 0, 0};
+    uint8_t packet[cmd_sz + 4] = {CMD_STARTBYTE, CMD_PING, 0, 0,
+                                  CMD_STARTBYTE, CMD_TIME, 0, 7};
                                   // CRC byte for non-packet ^
-    uint8_t resp[pkt_sz] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    fake_usb_tx(packet, pkt_sz + 4);
+    uint8_t resp[rsp_sz];
+    for (int i = 0; i < rsp_sz; i++) {
+        resp[i] = 0xff;
+    }
+    fake_usb_tx(packet, cmd_sz + 4);
     commands_process();
     // it could take two rounds to handle this, that's fine
     commands_process();
-    TEST_ASSERT_EQUAL(pkt_sz, fake_usb_rx(resp, pkt_sz));
+    TEST_ASSERT_EQUAL(rsp_sz, fake_usb_rx(resp, rsp_sz));
     TEST_ASSERT_EQUAL(CMD_STARTBYTE, resp[0]);
-    TEST_ASSERT_EQUAL(RESP_ACK, resp[1]);
-    TEST_ASSERT_EQUAL(CMD_TAG, resp[2]);
+    TEST_ASSERT_EQUAL(CMD_TIME, resp[1]);
 }
 
 int main(void) {
