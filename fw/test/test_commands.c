@@ -8,6 +8,7 @@
 void setup(void) {
     usb_init();
     fake_usb_clear_all();
+    commands_init();
 }
 
 void test_ping(void) {
@@ -54,10 +55,27 @@ void test_ignore_noise(void) {
     TEST_ASSERT_EQUAL(0, fake_usb_rx(resp, pkt_sz));
 }
 
+void test_ignore_false_packet(void) {
+    setup();
+    uint8_t packet[pkt_sz + 4] = {CMD_STARTBYTE, CMD_PING, 0, 0,
+                                  CMD_STARTBYTE, CMD_TAG, 0, 7, 0, 0, 0, 0};
+                                  // CRC byte for non-packet ^
+    uint8_t resp[pkt_sz] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    fake_usb_tx(packet, pkt_sz + 4);
+    commands_process();
+    // it could take two rounds to handle this, that's fine
+    commands_process();
+    TEST_ASSERT_EQUAL(pkt_sz, fake_usb_rx(resp, pkt_sz));
+    TEST_ASSERT_EQUAL(CMD_STARTBYTE, resp[0]);
+    TEST_ASSERT_EQUAL(RESP_ACK, resp[1]);
+    TEST_ASSERT_EQUAL(CMD_TAG, resp[2]);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_ping);
     RUN_TEST(test_split_packet);
     RUN_TEST(test_ignore_noise);
+    RUN_TEST(test_ignore_false_packet);
     return UNITY_END();
 }

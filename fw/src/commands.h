@@ -7,12 +7,14 @@
 
 typedef enum cmd_msg_e {
     CMD_PING = 0,
+    CMD_TAG,
     CMD_RESERVED = CMD_STARTBYTE
 } cmd_msg_e;
 
 typedef enum resp_msg_e {
     RESP_PONG = 0,
-    RESP_NAK = 1,
+    RESP_NAK,
+    RESP_ACK,
     RESP_RESERVED = CMD_STARTBYTE
 } resp_msg_e;
 
@@ -23,6 +25,7 @@ typedef struct cmd_t {
     uint8_t checksum;
 } cmd_t;
 
+void commands_init(void);
 void commands_process(void);
 
 #endif // COMMANDS_H
