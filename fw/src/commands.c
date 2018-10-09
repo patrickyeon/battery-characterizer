@@ -9,7 +9,14 @@ static uint8_t crc(uint8_t *buff, int len) {
 }
 
 #define RLEN 10
-#define CLEN 8
+#define CLEN 11
+
+#define UNPACK4(buffer, start) ((buffer[start] << 24)       \
+                                | (buffer[start + 1] << 16) \
+                                | (buffer[start + 2] << 8)  \
+                                | (buffer[start + 3]))
+#define UNPACK2(buffer, start) ((buffer[start] << 8) \
+                                | (buffer[start+1] & 0xff))
 
 static uint8_t cmdbuff[CLEN];
 static unsigned int cmdidx;
@@ -51,6 +58,7 @@ void commands_process(void) {
     uint8_t resp[RLEN] = {CMD_STARTBYTE};
     uint32_t u32;
     int32_t i32;
+    uint16_t u16;
     abs_time_t now = systime();
     switch (cmdbuff[1]) {
     case CMD_PING:
@@ -58,8 +66,7 @@ void commands_process(void) {
         usb_write(resp, RLEN);
         break;
     case CMD_TAG:
-        u32 = ((cmdbuff[2] << 24) | (cmdbuff[3] << 16) | (cmdbuff[4] << 8)
-               | (cmdbuff[5] & 0xff));
+        u32 = UNPACK4(cmdbuff, 2);
         i32 = logger_log_user(&now, u32);
         if (i32 >= 0) {
             resp[1] = CMD_TAG;
@@ -71,8 +78,14 @@ void commands_process(void) {
         }
         usb_write(resp, RLEN);
         break;
-    case CMD_TIME:
-        resp[1] = CMD_TIME;
+    case CMD_TIME_SET:
+        u32 = UNPACK4(cmdbuff, 2);
+        u16 = UNPACK2(cmdbuff, 6);
+        timers_set_systime(u32, u16);
+        now = systime();
+        // falling through on purpose
+    case CMD_TIME_GET:
+        resp[1] = CMD_TIME_SET;
         resp[2] = (now.sec >> 24) & 0xff;
         resp[3] = (now.sec >> 16) & 0xff;
         resp[4] = (now.sec >> 8) & 0xff;

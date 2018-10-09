@@ -3,7 +3,7 @@
 #include "../driver/usb.h"
 #include "../fake/fake_usb.h"
 
-#define cmd_sz 8
+#define cmd_sz 11
 #define rsp_sz 10
 
 void setup(void) {
@@ -68,8 +68,8 @@ void test_ignore_noise(void) {
 void test_ignore_false_packet(void) {
     setup();
     uint8_t packet[cmd_sz + 4] = {CMD_STARTBYTE, CMD_PING, 0, 0,
-                                  CMD_STARTBYTE, CMD_TIME, 0, 7};
-                                  // CRC byte for non-packet ^
+                                  CMD_STARTBYTE, CMD_TIME_GET};
+    packet[cmd_sz - 1] = 0x7; // bad CRC
     uint8_t resp[rsp_sz];
     for (int i = 0; i < rsp_sz; i++) {
         resp[i] = 0xff;
@@ -80,7 +80,7 @@ void test_ignore_false_packet(void) {
     commands_process();
     TEST_ASSERT_EQUAL(rsp_sz, fake_usb_rx(resp, rsp_sz));
     TEST_ASSERT_EQUAL(CMD_STARTBYTE, resp[0]);
-    TEST_ASSERT_EQUAL(CMD_TIME, resp[1]);
+    TEST_ASSERT_EQUAL(CMD_TIME_SET, resp[1]);
 }
 
 int main(void) {
