@@ -32,9 +32,9 @@ void stm_adc_init(uint8_t nChan, uint8_t channels[], enum adc_opmode opmode) {
     dma_disable_peripheral_increment_mode(DMA1, 1);
     dma_set_read_from_peripheral(DMA1, 1);
     dma_set_priority(DMA1, 1, DMA_CCR_PL_LOW);
-    dma_set_memory_address(DMA1, 1, chanbuff);
+    dma_set_memory_address(DMA1, 1, (uint32_t)chanbuff);
     // this address is a guess.
-    dma_set_peripheral_address(DMA1, 1, &ADC_DR(ADC1));
+    dma_set_peripheral_address(DMA1, 1, ADC_DR(ADC1));
     dma_set_number_of_data(DMA1, 1, nChan);
     dma_enable_channel(DMA1, 1);
 
