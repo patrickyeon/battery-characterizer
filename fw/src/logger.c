@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 //FIXME real addresses
-#define LOG_BASE 0
+#define LOG_BASE 0x08004000
 #define N_LOG_PAGES 3
 
 // A log line is stored in 8 bytes of memory, laid out like so:

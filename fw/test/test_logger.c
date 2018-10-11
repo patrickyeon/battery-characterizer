@@ -7,7 +7,7 @@
 
 void setup(void) {
     timers_set_systime(0, 0);
-    fake_flash_init();
+    fake_flash_init(0x08004000);
 }
 
 void logger_payload_to_ma_mv(uint8_t *payload, uint16_t *ma, uint16_t *mv) {

@@ -20,11 +20,11 @@ endif
 CFLAGS = -g -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0 -Wall -Werror
 NATIVE_CFLAGS = -DHWID=0x1337 $(CFLAGS)
 
-ARM_ARCH_FLAGS = -mthumb -mcpu=cortex-m0
+ARM_ARCH_FLAGS = -mthumb -mcpu=cortex-m0 -Os -flto
 ARM_CFLAGS = $(ARM_ARCH_FLAGS) -DNDEBUG -DHWID=$(HWID) $(CFLAGS)
 #ARM_CFLAGS += -fno-common -ffunction-sections -fdata-sections
 ARM_LDLIBS = -lopencm3_stm32f0
-ARM_LDSCRIPT = $(OPENCM3_DIR)/lib/stm32/f0/stm32f04xz6.ld
+ARM_LDSCRIPT = stm32f04xz6_log.ld
 ARM_LDFLAGS = -L$(OPENCM3_DIR)/lib --static -nostartfiles -T$(ARM_LDSCRIPT)
 ARM_LDFLAGS += $(ARM_ARCH_FLAGS)
 
@@ -90,7 +90,7 @@ clean:
 	find $(BUILDDIR) -type f -delete
 
 flash: main
-	$(ARM_PREFIX)gdb $(TARGETDIR)latest.elf\
+	$(ARM_PREFIX)gdb $(TARGETDIR)main.elf\
 			-ex "target extended-remote /dev/ttyBmpGdb"\
 			-ex "monitor swdp_scan"\
 			-ex "attach 1"\

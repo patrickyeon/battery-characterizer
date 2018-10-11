@@ -6,9 +6,16 @@
 #define MAX_ADDR 0x7fff
 
 static uint8_t storage[MAX_ADDR + 1];
+static uint32_t _base;
+
+static uint32_t reloc(uint32_t address) {
+    assert(address >= _base);
+    assert(address - _base <= MAX_ADDR);
+    return address - _base;
+}
 
 uint8_t flash_read(uint32_t address, uint8_t *buff, size_t len) {
-    assert(address + len <= MAX_ADDR);
+    address = reloc(address);
     for (int i = 0; i < len; i++) {
         buff[i] = storage[address + i];
     }
@@ -16,12 +23,12 @@ uint8_t flash_read(uint32_t address, uint8_t *buff, size_t len) {
 }
 
 uint8_t flash_peek(uint32_t address) {
-    assert(address <= MAX_ADDR);
+    address = reloc(address);
     return storage[address];
 }
 
 uint8_t flash_write(uint8_t *buff, uint32_t address, size_t len) {
-    assert(address + len <= MAX_ADDR);
+    address = reloc(address);
     for (int i = 0; i < len; i++) {
         // emulate flash storage, we can only clear bits
         storage[address + i] &= buff[i];
@@ -29,7 +36,8 @@ uint8_t flash_write(uint8_t *buff, uint32_t address, size_t len) {
     return len;
 }
 
-void fake_flash_init(void) {
+void fake_flash_init(uint32_t base) {
+    _base = base;
     for (uint32_t i = 0; i < MAX_ADDR; i++) {
         storage[i] = 0xff;
     }
