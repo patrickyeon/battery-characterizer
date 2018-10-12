@@ -17,7 +17,7 @@ else
 $(warning using $(HWID))
 endif
 
-CFLAGS = -g -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0 -Wall -Werror
+CFLAGS = -ggdb -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0 -Wall -Werror
 NATIVE_CFLAGS = -DHWID=0x1337 $(CFLAGS)
 
 ARM_ARCH_FLAGS = -mthumb -mcpu=cortex-m0 -Os -flto
@@ -26,7 +26,7 @@ ARM_CFLAGS = $(ARM_ARCH_FLAGS) -DNDEBUG -DHWID=$(HWID) $(CFLAGS)
 ARM_LDLIBS = -lopencm3_stm32f0
 ARM_LDSCRIPT = stm32f04xz6_log.ld
 ARM_LDFLAGS = -L$(OPENCM3_DIR)/lib --static -nostartfiles -T$(ARM_LDSCRIPT)
-ARM_LDFLAGS += $(ARM_ARCH_FLAGS)
+ARM_LDFLAGS += $(ARM_ARCH_FLAGS) -ggdb
 
 SRCDIR = src/
 TESTDIR = test/

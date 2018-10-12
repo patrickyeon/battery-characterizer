@@ -83,7 +83,7 @@ void logger_init(void) {
             int lo = 0, hi = 126;
             while (hi - lo > 1) {
                 int mid = (hi + lo) / 2;
-                if (flash_peek(log_addr(i, mid) + 3) != LOG_UNWRITTEN) {
+                if (flash_peek(log_addr(i, mid) + 2) != LOG_UNWRITTEN) {
                     lo = mid;
                 } else {
                     hi = mid;
@@ -282,7 +282,7 @@ static int logline_read(uint8_t page, uint8_t offset, log_msg_t *buffer) {
     header_t *h = _log + page;
     uint8_t buff[8];
     flash_read(log_addr(page, offset), buff, 8);
-    if (buff[3] != LOG_UNWRITTEN && buff[3] != LOG_ERASED) {
+    if (buff[2] != LOG_UNWRITTEN && buff[2] != LOG_ERASED) {
         buffer->seqnum = h->seqnum_base + offset;
         buffer->timestamp = (h->timestamp_offset + ((uint32_t)buff[0] << 8)
                              + ((uint32_t)buff[1] & 0xff));
@@ -319,7 +319,7 @@ int logger_dequeue(log_msg_t *buffer) {
     // that will be written.
     while ((n_read.page != n_write.page)
            || (n_read.page == n_write.page && n_read.offset < n_write.offset)) {
-        uint8_t type = flash_peek(log_addr(n_read.page, n_read.offset) + 3);
+        uint8_t type = flash_peek(log_addr(n_read.page, n_read.offset) + 2);
         if (type != LOG_UNWRITTEN && type != LOG_ERASED) {
             break;
         }

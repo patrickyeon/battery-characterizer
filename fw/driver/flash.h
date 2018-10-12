@@ -10,5 +10,6 @@ uint8_t flash_read(uint32_t address, uint8_t *buff, size_t len);
 uint8_t flash_peek(uint32_t address);
 uint8_t flash_write(uint8_t *buff, uint32_t address, size_t len);
 int flash_erase(uint8_t page);
+void flash_init(void);
 
 #endif // FLASH_H

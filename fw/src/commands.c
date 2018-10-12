@@ -2,6 +2,7 @@
 #include "./logger.h"
 #include "./timers.h"
 #include "../driver/usb.h"
+#include "../driver/flash.h"
 
 static uint8_t crc(uint8_t *buff, int len) {
     //FIXME real crc
@@ -56,15 +57,19 @@ void commands_process(void) {
         return;
     }
     uint8_t resp[RLEN] = {CMD_STARTBYTE};
+    int err;
     uint32_t u32;
     int32_t i32;
     uint16_t u16;
+    log_msg_t log_msg;
     abs_time_t now = systime();
     switch (cmdbuff[1]) {
+
     case CMD_PING:
         resp[1] = CMD_PONG;
         usb_write(resp, RLEN);
         break;
+
     case CMD_TAG:
         u32 = UNPACK4(cmdbuff, 2);
         i32 = logger_log_user(&now, u32);
@@ -78,6 +83,7 @@ void commands_process(void) {
         }
         usb_write(resp, RLEN);
         break;
+
     case CMD_TIME_SET:
         u32 = UNPACK4(cmdbuff, 2);
         u16 = UNPACK2(cmdbuff, 6);
@@ -94,6 +100,33 @@ void commands_process(void) {
         resp[7] = now.ms & 0xff;
         usb_write(resp, RLEN);
         break;
+
+    case CMD_DEQUEUE_LOG:
+        err = logger_dequeue(&log_msg);
+        if (err < 0) {
+            resp[1] = CMD_NAK;
+            resp[2] = err & 0xff;
+        } else {
+            resp[1] = CMD_ACK;
+            resp[2] = log_msg.seqnum >> 8;
+            resp[3] = log_msg.seqnum & 0xff;
+            resp[4] = log_msg.type;
+            resp[5] = log_msg.payload[0];
+            resp[6] = log_msg.payload[1];
+            resp[7] = log_msg.payload[2];
+            resp[8] = log_msg.payload[3];
+        }
+        usb_write(resp, RLEN);
+        break;
+
+    case CMD_WIPE_LOG:
+        for (int i = 0; i < 3; i++) {
+            flash_erase(i);
+        }
+        resp[1] = CMD_ACK;
+        usb_write(resp, RLEN);
+        break;
+
     default:
         resp[1] = CMD_NAK;
         resp[2] = cmdbuff[1];
