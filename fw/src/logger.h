@@ -42,7 +42,6 @@ typedef enum log_type_e {
     LOG_UNWRITTEN = 0xff
 } log_type_e;
 
-//TODO make this packed
 typedef struct log_msg_t {
     uint16_t seqnum;
     uint32_t timestamp;

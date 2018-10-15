@@ -127,6 +127,32 @@ void commands_process(void) {
         usb_write(resp, RLEN);
         break;
 
+    case CMD_FLASH_PEEK:
+        u32 = UNPACK4(cmdbuff, 2);
+        if (cmdbuff[6] > 7 || u32 < 0x0800000 || u32 >= 0x08008000) {
+            resp[1] = CMD_NAK;
+            resp[2] = CMD_FLASH_PEEK;
+        } else {
+            resp[1] = CMD_FLASH_PEEK;
+            for (int i = 0; i < cmdbuff[6]; i++) {
+                resp[i + 2] = flash_peek(u32 + i);
+            }
+        }
+        usb_write(resp, RLEN);
+        break;
+
+    case CMD_FLASH_READ:
+        u32= UNPACK4(cmdbuff, 2);
+        if (cmdbuff[6] > 7 || u32 < 0x0800000 || u32 >= 0x08008000) {
+            resp[1] = CMD_NAK;
+            resp[2] = CMD_FLASH_READ;
+        } else {
+            resp[1] = CMD_FLASH_READ;
+            flash_read(u32, resp + 2, cmdbuff[6]);
+        }
+        usb_write(resp, RLEN);
+        break;
+
     default:
         resp[1] = CMD_NAK;
         resp[2] = cmdbuff[1];

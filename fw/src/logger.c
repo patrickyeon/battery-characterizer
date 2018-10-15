@@ -39,9 +39,10 @@ typedef struct header_t {
 // We treat the log pages in flash as a big circular buffer, refusing to write
 // on overflow.
 
-static uint32_t _seqnum;
+static uint16_t _seqnum;
 
 static void write_header(header_t *h, int npage);
+static void finalize_header(header_t *h, int npage);
 static void read_header(int npage, header_t *h);
 
 static header_t _log[N_LOG_PAGES];
@@ -73,12 +74,12 @@ void logger_init(void) {
     // read in all the pages' headers, noting the first empty one for writing
     for (int i = 0; i < N_LOG_PAGES; i++) {
         read_header(i, _log + i);
-        if (n_write.page < 0 && _log[i].status == 0) {
+        if (n_write.page < 0 && _log[i].seqnum_base == 0xffff) {
             n_write.page = i;
         }
-        if (_log[i].status == HEADER_INIT) {
+        if (_log[i].seqnum_base != 0xffff && _log[i].status == 0x00) {
             // overflowed-via-reset, fix the header
-            _log[i].status |= HEADER_RESET;
+            _log[i].status = HEADER_INIT | HEADER_RESET;
             // also, calculate the last written logline
             int lo = 0, hi = 126;
             while (hi - lo > 1) {
@@ -90,7 +91,7 @@ void logger_init(void) {
                 }
             }
             _log[i].last_seqnum = lo;
-            write_header(_log + i, i);
+            finalize_header(_log + i, i);
         }
     }
 
@@ -150,10 +151,15 @@ static void write_header(header_t *h, int npage) {
     //TODO just make header packed properly?
     uint8_t buff[] = {h->seqnum_base >> 8, h->seqnum_base & 0xff,
                       h->timestamp_offset >> 24, h->timestamp_offset >> 16,
-                      h->timestamp_offset >> 8, h->timestamp_offset & 0xff,
-                      ~h->status,
-                      h->last_seqnum};
-    flash_write(buff, header_addr(npage), 8);
+                      h->timestamp_offset >> 8, h->timestamp_offset & 0xff};
+    // don't do status or last_seqnum, that's handled by finalize_header
+    flash_write(buff, header_addr(npage), 6);
+}
+
+static void finalize_header(header_t *h, int npage) {
+    assert(0 <= npage && npage < N_LOG_PAGES);
+    uint8_t buff[] = {~h->status, h->last_seqnum};
+    flash_write(buff, header_addr(npage) + 6, 2);
 }
 
 static void read_header(int npage, header_t *h) {
@@ -193,13 +199,14 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
         } else {
             // we've timed out and need to flush this header
             h->status |= HEADER_TIMEOUT;
-            write_header(h, n_write.page);
+            finalize_header(h, n_write.page);
         }
     }
     if (_seqnum > h->seqnum_base + 126) {
         // we're overflowing the current page, set up the next one
         h->status |= HEADER_OVF;
-        write_header(h, n_write.page);
+        // FIXME not sure what to do with both OVF and TIMEOUT
+        finalize_header(h, n_write.page);
     }
     if (h->status != HEADER_INIT) {
         //  page has been closed out for some reason. What the reason is doesn't
@@ -219,9 +226,6 @@ static int32_t _logline(abs_time_t *when, log_type_e what, uint8_t *details) {
     }
     if (n_write.offset == 0xff) {
         // first line into this page, let's write the header first
-        //  last_seqnum written as 0xff, so that we can overwrite it when we
-        // actually finalize the page.
-        h->last_seqnum = 0xff;
         write_header(h, n_write.page);
         h->last_seqnum = 0;
         n_write.offset = 0;

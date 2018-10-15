@@ -15,6 +15,8 @@ typedef enum cmd_msg_e {
     CMD_TIME_SET,
     CMD_DEQUEUE_LOG,
     CMD_WIPE_LOG,
+    CMD_FLASH_PEEK,
+    CMD_FLASH_READ,
     CMD_RESERVED = CMD_STARTBYTE
 } cmd_msg_e;
 

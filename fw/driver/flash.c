@@ -4,7 +4,7 @@
 
 uint8_t flash_read(uint32_t address, uint8_t *buff, size_t len) {
     for (int i = 0; i < len; i++) {
-        buff[i] = *((uint32_t *)(address + i));
+        buff[i] = *((uint8_t *)(address + i));
     }
     return len;
 }
@@ -14,9 +14,11 @@ uint8_t flash_peek(uint32_t address) {
 }
 
 uint8_t flash_write(uint8_t *buff, uint32_t address, size_t len) {
-    // FIXME current only works right with len == n*4
-    for (int i = 0; i < len; i += 4) {
-        flash_program_word(address + i, *((uint32_t *)(buff + i)));
+    //  Address needs to be 16-bit aligned, and len needs to be even, due to how
+    // the stm32 writes memory.
+    // TODO: error-checking
+    for (int i = 0; i < len; i += 2) {
+        flash_program_half_word(address + i, *((uint16_t *)(buff + i)));
     }
     return len;
 }
