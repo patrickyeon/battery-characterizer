@@ -10,13 +10,15 @@ typedef enum cmd_msg_e {
     CMD_ACK,
     CMD_PING,
     CMD_PONG,
-    CMD_TAG,
+    CMD_TAG, //4
     CMD_TIME_GET,
     CMD_TIME_SET,
     CMD_DEQUEUE_LOG,
-    CMD_WIPE_LOG,
+    CMD_WIPE_LOG, //8
     CMD_FLASH_PEEK,
     CMD_FLASH_READ,
+    CMD_ADC_READ,
+    CMD_TEMP_READ, //c
     CMD_RESERVED = CMD_STARTBYTE
 } cmd_msg_e;
 

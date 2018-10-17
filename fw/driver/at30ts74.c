@@ -6,7 +6,6 @@
 #include <libopencm3/stm32/i2c.h>
 
 // FIXME handle timeouts, NACKs
-
 int16_t at30ts74_read(uint8_t addr) {
     uint8_t retval[2];
     uint8_t tempreg = 0;

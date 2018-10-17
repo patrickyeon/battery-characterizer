@@ -15,20 +15,20 @@
 #define MEAS_ID_A GPIO2
 #define MEAS_ID_B GPIO3
 // cell voltage measurement, on PORTA
-#define VBAT_0 GPIO11
-#define VBAT_1 GPIO10
-#define VBAT_2 GPIO13
-#define VBAT_3 GPIO12
+#define VBAT_0 GPIO5
+#define VBAT_1 GPIO4
+#define VBAT_2 GPIO7
+#define VBAT_3 GPIO6
 
 // ADC channels
 #define CHAN_IC_A 0
 #define CHAN_IC_B 1
 #define CHAN_ID_A 2
 #define CHAN_ID_B 3
-#define CHAN_VB0 11
-#define CHAN_VB1 10
-#define CHAN_VB2 13
-#define CHAN_VB3 12
+#define CHAN_VB0 5
+#define CHAN_VB1 4
+#define CHAN_VB2 7
+#define CHAN_VB3 6
 
 // direction setting, charge/discharge enables. mixed across PORTA/PORTB
 // sigh. Would've been better to swap CEN_B and DIR_B.
