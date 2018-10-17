@@ -8,6 +8,7 @@
 #include "./src/director.h"
 #include "./src/gpio.h"
 #include "./src/logger.h"
+#include "./src/pindefs.h"
 #include "./src/timers.h"
 
 #include "libopencm3/stm32/flash.h"
@@ -21,8 +22,9 @@ void init(void) {
     commands_init();
     flash_init();
     logger_init();
-    uint8_t adc_chans[] = {0};
-    adc_init(1, adc_chans, ADC_MODE_SCAN_INFINITE);
+    // ohhh, channel list has to be in order
+    uint8_t adc_chans[] = {CHAN_VB1, CHAN_VB0, CHAN_VB3, CHAN_VB2};
+    adc_init(4, adc_chans, ADC_MODE_SCAN);
 
     at30ts74_init(0x48);
     at30ts74_init(0x49);

@@ -150,6 +150,7 @@ void director_init(void) {
 }
 
 int director_enable(dir_state_t target) {
+    adc_scan();
     dir_state_e dirs[4] = {CENA, CENB, DENA, DENB};
     for (int i = 0; i < 4; i++) {
         if (target & dirs[i]) {
@@ -199,6 +200,7 @@ static uint32_t _check_all(dir_state_e channel, dir_err_e basecode) {
 }
 
 uint32_t director_checkup(void) {
+    adc_scan();
     uint32_t retval = 0;
     if (director.cenA) {
         retval |= _check_all(CENA, (director.dirA == CHG_DISCHG ?

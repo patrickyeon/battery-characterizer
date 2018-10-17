@@ -7,6 +7,7 @@
 
 void adc_init(uint8_t nChan, uint8_t channels[], enum adc_opmode opmode) {
     rcc_periph_clock_enable(RCC_ADC);
+    rcc_periph_clock_enable(RCC_DMA);
     gpio_mode_setup(GPIOA, GPIO_MODE_ANALOG, GPIO_PUPD_NONE,
             (MEAS_ID_A | MEAS_ID_B | MEAS_IC_A | MEAS_IC_B
              | VBAT_0 | VBAT_1 | VBAT_2 | VBAT_3));
@@ -30,4 +31,8 @@ uint16_t adc_mv_to_code(uint16_t mv, uint16_t fullscale_mv) {
     // clip retval like an ADC would, not mask it
     retval = retval > 0xfff ? 0xfff : retval;
     return (uint16_t)retval;
+}
+
+void adc_scan(void) {
+    stm_adc_scan();
 }

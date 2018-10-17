@@ -7,6 +7,7 @@ void test_adc_values(void) {
     adc_init(3, chans, ADC_MODE_SCAN_INFINITE);
     fake_stm_adc_set(1, 13);
     fake_stm_adc_set(5, 1011);
+    adc_scan();
     TEST_ASSERT_EQUAL(13, adc_read(1));
     TEST_ASSERT_EQUAL(0, adc_read(2));
     TEST_ASSERT_EQUAL(1011, adc_read(5));
