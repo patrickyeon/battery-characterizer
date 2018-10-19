@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define FLASH_PAGESIZE 1024
+#define USERFLASH_PAGESIZE 1024
+#define USERFLASH_BASE 0x08004800
+#define USERFLASH_LEN (0x08008000 - USERFLASH_BASE)
 
 uint8_t flash_read(uint32_t address, uint8_t *buff, size_t len);
 uint8_t flash_peek(uint32_t address);

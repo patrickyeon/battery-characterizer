@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-#define MAX_ADDR 0x7fff
+#define MAX_ADDR (USERFLASH_LEN)
 
 static uint8_t storage[MAX_ADDR + 1];
 static uint32_t _base;
@@ -44,8 +44,8 @@ void fake_flash_init(uint32_t base) {
 }
 
 int flash_erase(uint8_t page) {
-    assert(page < (MAX_ADDR + 1) / FLASH_PAGESIZE);
-    for(int i = page * FLASH_PAGESIZE; i < (page + 1) * FLASH_PAGESIZE; i++) {
+    assert(page < (MAX_ADDR + 1) / USERFLASH_PAGESIZE);
+    for(int i = page * USERFLASH_PAGESIZE; i < (page + 1) * USERFLASH_PAGESIZE; i++) {
         storage[i] = 0xff;
     }
     return 0;

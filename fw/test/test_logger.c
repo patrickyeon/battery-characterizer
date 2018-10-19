@@ -1,13 +1,16 @@
 #include "unity.h"
 #include "../src/logger.h"
 #include "../src/timers.h"
+#include "../driver/flash.h"
 #include "../fake/fake_flash.h"
 
 #include <stdint.h>
 
+#define NLOG_PAGES (USERFLASH_LEN / USERFLASH_PAGESIZE)
+
 void setup(void) {
     timers_set_systime(0, 0);
-    fake_flash_init(0x08004000);
+    fake_flash_init(USERFLASH_BASE);
 }
 
 void logger_payload_to_ma_mv(uint8_t *payload, uint16_t *ma, uint16_t *mv) {
@@ -97,12 +100,12 @@ void test_log_into_next_page(void) {
 void test_log_full(void) {
     setup();
     logger_init();
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < (NLOG_PAGES - 1); i++) {
         timers_set_systime(i * 0xf0000, 0);
         abs_time_t t = (abs_time_t){i * 0xf0000, 99};
         TEST_ASSERT(logger_log_iv(&t, LOG_IV_CHG_BAT0, 188, 3777) >= 0);
     }
-    // we should now be on the third page, so when this one fills we're full
+    // we should now be on the last page, so when this one fills we're full
     for (int i = 0; i < 127; i++) {
         timers_set_systime(2 * 0xf0000 + i + 2, 0);
         abs_time_t t = (abs_time_t){2 * 0xf0000 + i + 2, 333};
@@ -168,12 +171,10 @@ void test_log_after_dequeueing_all(void) {
 
 void test_fill_log_then_dequeue_to_free_space(void) {
     setup();
-    logger_init();
-    add_many_lines(0, 4, 1600, 3500);
-    logger_init();
-    add_many_lines(5, 9, 1600, 3500);
-    logger_init();
-    add_many_lines(10, 15, 1600, 3500);
+    for (int i = 0; i < NLOG_PAGES; i++) {
+        logger_init();
+        add_many_lines(i * 5, (i + 1) * 5 - 1, 1600, 3500);
+    }
     logger_init();
     abs_time_t now = systime();
     TEST_ASSERT(logger_log_iv(&now, LOG_IV_CHG_BAT0, 1200, 3200) < 0);
@@ -181,7 +182,8 @@ void test_fill_log_then_dequeue_to_free_space(void) {
         log_msg_t buff;
         logger_dequeue(&buff);
     }
-    TEST_ASSERT_EQUAL(16, logger_log_iv(&now, LOG_IV_CHG_BAT0, 1200, 3200));
+    TEST_ASSERT_EQUAL(NLOG_PAGES * 5, logger_log_iv(&now, LOG_IV_CHG_BAT0,
+                                                    1200, 3200));
 }
 
 int main(void) {

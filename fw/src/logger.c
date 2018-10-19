@@ -4,9 +4,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
-//FIXME real addresses
-#define LOG_BASE 0x08004000
-#define N_LOG_PAGES 3
+#define N_LOG_PAGES (USERFLASH_LEN / USERFLASH_PAGESIZE)
 
 // A log line is stored in 8 bytes of memory, laid out like so:
 //   uint16_t timestamp;
@@ -59,13 +57,13 @@ static struct log_ptr_t {
 
 static inline uint32_t header_addr(uint8_t npage) {
     assert(npage < N_LOG_PAGES);
-    return LOG_BASE + npage * FLASH_PAGESIZE;
+    return USERFLASH_BASE + npage * USERFLASH_PAGESIZE;
 }
 
 static inline uint32_t log_addr(uint8_t npage, uint8_t nline) {
     assert(npage < N_LOG_PAGES);
     assert(nline <= 126);
-    return LOG_BASE + npage * FLASH_PAGESIZE + (nline + 1) * 8;
+    return USERFLASH_BASE + npage * USERFLASH_PAGESIZE + (nline + 1) * 8;
 }
 
 void logger_init(void) {

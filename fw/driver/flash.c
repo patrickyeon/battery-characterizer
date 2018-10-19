@@ -24,8 +24,7 @@ uint8_t flash_write(uint8_t *buff, uint32_t address, size_t len) {
 }
 
 int flash_erase(uint8_t page) {
-    // FIXME this is hacky to hardcode here
-    flash_erase_page(0x08004000 + page * FLASH_PAGESIZE);
+    flash_erase_page(USERFLASH_BASE + page * USERFLASH_PAGESIZE);
     return 0;
 }
 
