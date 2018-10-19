@@ -58,7 +58,7 @@ int32_t logger_log_temp_stat(abs_time_t *when, log_type_e what, int16_t temp,
                              uint8_t stat_flags);
 int32_t logger_log_user(abs_time_t *when, uint32_t msg);
 int32_t logger_log_timesync(abs_time_t *when, int32_t delta_ms);
-int32_t logger_log_error(abs_time_t *when, uint8_t err);
+int32_t logger_log_error(abs_time_t *when, uint32_t err);
 
 int logger_read(uint16_t seqnum, log_msg_t *buffer);
 int logger_dequeue(log_msg_t *buffer);

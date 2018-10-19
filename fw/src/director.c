@@ -200,7 +200,6 @@ static uint32_t _check_all(dir_state_e channel, dir_err_e basecode) {
 }
 
 uint32_t director_checkup(void) {
-    adc_scan();
     uint32_t retval = 0;
     if (director.cenA) {
         retval |= _check_all(CENA, (director.dirA == CHG_DISCHG ?

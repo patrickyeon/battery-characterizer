@@ -277,8 +277,9 @@ int32_t logger_log_timesync(abs_time_t *when, int32_t delta_ms) {
     return _logline(when, LOG_TIME_SYNC, payload);
 }
 
-int32_t logger_log_error(abs_time_t *when, uint8_t err) {
-    uint8_t payload[4] = {0, 0, 0, err};
+int32_t logger_log_error(abs_time_t *when, uint32_t err) {
+    uint8_t payload[4] = {(err >> 24) & 0xff, (err >> 16) & 0xff,
+                          (err >> 8) & 0xff, err & 0xff};
     return _logline(when, LOG_ERR, payload);
 }
 

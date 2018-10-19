@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/systick.h>
 
@@ -16,6 +17,15 @@ void timers_init(void) {
     _ms = 0;
     _sec = 0;
     systick_clear();
+
+    // TIM14 for tick/tock
+    rcc_periph_clock_enable(RCC_TIM14);
+    rcc_periph_reset_pulse(RST_TIM14);
+    timer_set_prescaler(TIM14, 96);
+    timer_disable_preload(TIM14);
+    timer_one_shot_mode(TIM14);
+
+
     systick_interrupt_enable();
     systick_counter_enable();
 }
@@ -60,4 +70,13 @@ uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to) {
     } else {
         return retval * 1000 + to->ms - from->ms;
     }
+}
+
+void tick(void) {
+    timer_set_counter(TIM14, 0);
+    timer_enable_counter(TIM14);
+}
+
+uint32_t tock(void) {
+    return timer_get_counter(TIM14) * 2;
 }

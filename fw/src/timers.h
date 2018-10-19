@@ -3,6 +3,14 @@
 
 #include <stdint.h>
 
+// Timer assignments:
+// - SYSTICK is system time (surprise.)
+// - TIM3 controls PWM on 4 channels for current setting
+//   (CH 1/2/3/4 --> PB4/5/0/1 --> ICA/ICB/IDA/IDB
+// - TIM14 for tick/tock time tracking
+//   With a 48MHz clock, prescaler = 96, we can run it for ~131ms before
+//   overflow and have 2us precision
+
 // gives us over 49.7K days before overflow, but with ms precision.
 typedef struct abs_time_t {
     uint32_t sec;
@@ -14,5 +22,7 @@ void timers_set_systime(uint32_t sec, uint16_t ms);
 abs_time_t systime(void);
 uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to);
 
+void tick(void);
+uint32_t tock(void);
 
 #endif // TIMERS_H
