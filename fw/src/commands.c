@@ -2,7 +2,9 @@
 #include "./adc.h"
 #include "./commands.h"
 #include "./director.h"
+#include "./gpio.h"
 #include "./logger.h"
+#include "./pindefs.h"
 #include "./timers.h"
 #include "../driver/usb.h"
 #include "../driver/flash.h"
@@ -146,7 +148,7 @@ void commands_process(void) {
         break;
 
     case CMD_FLASH_READ:
-        u32= UNPACK4(cmdbuff, 2);
+        u32 = UNPACK4(cmdbuff, 2);
         if (cmdbuff[6] > 7 || u32 < 0x0800000 || u32 >= 0x08008000) {
             resp[1] = CMD_NAK;
             resp[2] = CMD_FLASH_READ;
@@ -203,6 +205,34 @@ void commands_process(void) {
             director_disable(DENB);
         }
         resp[1] = CMD_CENDEN_SET;
+        usb_write(resp, RLEN);
+        break;
+
+    case CMD_CURRENT_SET:
+        u16 = UNPACK2(cmdbuff, 3);
+        switch (cmdbuff[2]) {
+        case 0:
+            u32 = SET_ID_A;
+            break;
+        case 1:
+            u32 = SET_ID_B;
+            break;
+        case 2:
+            u32 = SET_IC_A;
+            break;
+        case 3:
+            u32 = SET_IC_B;
+            break;
+        default:
+            u32 = 0;
+        }
+        if (u32) {
+            pwm_out(u32, u16);
+            resp[1] = CMD_CURRENT_SET;
+        } else {
+            resp[1] = CMD_NAK;
+            resp[2] = CMD_CURRENT_SET;
+        }
         usb_write(resp, RLEN);
         break;
 

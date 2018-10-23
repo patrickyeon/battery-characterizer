@@ -21,6 +21,7 @@ typedef enum cmd_msg_e {
     CMD_TEMP_READ, //c
     CMD_CENDEN_SET,
     CMD_ADC_SCAN,
+    CMD_CURRENT_SET,
     CMD_RESERVED = CMD_STARTBYTE
 } cmd_msg_e;
 

@@ -59,6 +59,8 @@ void fake_time_init(uint32_t clk_hz) {
 }
 
 void fake_time_run(uint32_t nticks) {
+    // TODO handle when count hits the compare, if it should re-load, and
+    //      one-shot mode.
     for (int i = 0; i < NTIMERS; i++) {
         timer_t *t = timers + i;
         uint32_t ticks = nticks;
@@ -123,6 +125,9 @@ void timer_set_prescaler(uint32_t timer_peripheral, uint32_t value) {
 void timer_disable_preload(uint32_t timer_peripheral) {
 }
 
+void timer_continuous_mode(uint32_t timer_peripheral) {
+}
+
 void timer_one_shot_mode(uint32_t timer_peripheral) {
 }
 
@@ -131,10 +136,32 @@ void timer_enable_counter(uint32_t timer_peripheral) {
 }
 
 void timer_set_counter(uint32_t timer_peripheral, uint32_t count) {
-    // TODO limit to 16b where applicable
+    // limit to 16b where applicable
+    if (timer_peripheral != TIM2) {
+        assert(count <= 0xffff);
+    }
     timers[_idx(timer_peripheral)].count = count;
 }
 
 uint32_t timer_get_counter(uint32_t timer_peripheral) {
     return timers[_idx(timer_peripheral)].count;
+}
+
+void timer_direction_up(uint32_t timer_peripheral) {
+}
+void timer_enable_irq(uint32_t timer_peripheral, uint32_t irq) {
+}
+void timer_set_oc_value(uint32_t timer_peripheral, enum tim_oc_id oc_id,
+                        uint32_t value) {
+}
+
+bool timer_get_flag(uint32_t timer_peripheral, uint32_t flag) {
+    return false;
+}
+
+void timer_clear_flag(uint32_t timer_peripheral, uint32_t flag) {
+}
+
+// I'm not making a fake_nvic until it's actually needed.
+void nvic_enable_irq(uint8_t irqn) {
 }
