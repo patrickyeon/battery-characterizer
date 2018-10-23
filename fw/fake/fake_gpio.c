@@ -51,6 +51,9 @@ void gpio_mode_setup(uint32_t gpioport, uint8_t mode, uint8_t pull_up_down,
         port->out_pins &= ~gpios;
         port->in_pins &= ~gpios;
         break;
+    case GPIO_MODE_AF:
+        // not implemented, but also ignored for now
+        break;
     default:
         // not yet implemented, or invalid
         assert(0);
@@ -75,4 +78,7 @@ void gpio_clear(uint32_t gpioport, uint16_t gpios) {
 uint16_t fake_gpio_get(uint32_t gpioport, uint16_t mask) {
     port_t *port = get_port(gpioport);
     return port->pin_states & mask;
+}
+
+void gpio_set_af(uint32_t gpioport, uint8_t alt_func_num, uint16_t gpios) {
 }

@@ -23,25 +23,30 @@ void gpio_init(void) {
             (DIR_B | CEN_A | DEN_A | DEN_B));
     gpio_clear(GPIOB, (DIR_B | CEN_A | DEN_A | DEN_B));
 
-    gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,
+    gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE,
                     (SET_ID_A | SET_ID_B | SET_IC_A | SET_IC_B));
-    gpio_clear(GPIOB, (SET_ID_A | SET_ID_B | SET_IC_A | SET_IC_B));
+    gpio_set_af(GPIOB, GPIO_AF1, (SET_ID_A | SET_ID_B | SET_IC_A | SET_IC_B));
 
     rcc_periph_clock_enable(RCC_TIM3);
-    nvic_enable_irq(NVIC_TIM3_IRQ);
     rcc_periph_reset_pulse(RST_TIM3);
-    timer_disable_preload(TIM3);
     timer_continuous_mode(TIM3);
     timer_direction_up(TIM3);
     timer_set_counter(TIM3, 0);
+    timer_set_period(TIM3, 6600);
+
     timer_set_oc_value(TIM3, TIM_OC1, 0xffff);
-    timer_enable_irq(TIM3, TIM_DIER_CC1IE);
     timer_set_oc_value(TIM3, TIM_OC2, 0xffff);
-    timer_enable_irq(TIM3, TIM_DIER_CC2IE);
     timer_set_oc_value(TIM3, TIM_OC3, 0xffff);
-    timer_enable_irq(TIM3, TIM_DIER_CC3IE);
     timer_set_oc_value(TIM3, TIM_OC4, 0xffff);
-    timer_enable_irq(TIM3, TIM_DIER_CC4IE);
+    timer_set_oc_mode(TIM3, TIM_OC1, TIM_OCM_PWM2);
+    timer_set_oc_mode(TIM3, TIM_OC2, TIM_OCM_PWM2);
+    timer_set_oc_mode(TIM3, TIM_OC3, TIM_OCM_PWM2);
+    timer_set_oc_mode(TIM3, TIM_OC4, TIM_OCM_PWM2);
+    timer_enable_oc_output(TIM3, TIM_OC1);
+    timer_enable_oc_output(TIM3, TIM_OC2);
+    timer_enable_oc_output(TIM3, TIM_OC3);
+    timer_enable_oc_output(TIM3, TIM_OC4);
+
     timer_enable_counter(TIM3);
 }
 
@@ -70,30 +75,6 @@ void pwm_out(uint32_t pin, uint16_t duty_frac) {
         assert(0);
         return;
     }
-    duties[idx] = 0xffff - duty_frac;
+    duties[idx] = (duty_frac > 6600 ? 0 : 6600 - duty_frac);
     timer_set_oc_value(TIM3, oc, duties[idx]);
-}
-
-void tim3_isr(void) {
-    if (timer_get_flag(TIM3, TIM_SR_CC1IF)) {
-        timer_clear_flag(TIM3, TIM_SR_CC1IF);
-        gpio_set(GPIOB, SET_ID_A);
-    }
-    if (timer_get_flag(TIM3, TIM_SR_CC2IF)) {
-        timer_clear_flag(TIM3, TIM_SR_CC2IF);
-        gpio_set(GPIOB, SET_ID_B);
-    }
-    if (timer_get_flag(TIM3, TIM_SR_CC3IF)) {
-        timer_clear_flag(TIM3, TIM_SR_CC3IF);
-        gpio_set(GPIOB, SET_IC_A);
-    }
-    if (timer_get_flag(TIM3, TIM_SR_CC4IF)) {
-        timer_clear_flag(TIM3, TIM_SR_CC4IF);
-        gpio_set(GPIOB, SET_IC_B);
-    }
-    // if it overflowed, clear them all
-    if (timer_get_flag(TIM3, TIM_SR_UIF)) {
-        timer_clear_flag(TIM3, TIM_SR_UIF);
-        gpio_clear(GPIOB, (SET_ID_A | SET_ID_B | SET_IC_A | SET_IC_B));
-    }
 }

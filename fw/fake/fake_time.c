@@ -147,12 +147,19 @@ uint32_t timer_get_counter(uint32_t timer_peripheral) {
     return timers[_idx(timer_peripheral)].count;
 }
 
+void timer_set_period(uint32_t timer_peripheral, uint32_t period) {
+}
 void timer_direction_up(uint32_t timer_peripheral) {
 }
 void timer_enable_irq(uint32_t timer_peripheral, uint32_t irq) {
 }
 void timer_set_oc_value(uint32_t timer_peripheral, enum tim_oc_id oc_id,
                         uint32_t value) {
+}
+void timer_set_oc_mode(uint32_t timer_peripheral, enum tim_oc_id oc_id,
+                       enum tim_oc_mode oc_mode) {
+}
+void timer_enable_oc_output(uint32_t timer_peripheral, enum tim_oc_id oc_id) {
 }
 
 bool timer_get_flag(uint32_t timer_peripheral, uint32_t flag) {
