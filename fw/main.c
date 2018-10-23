@@ -47,29 +47,36 @@ static void tenhz(void) {
             logger_log_error(&now, err);
         }
         // TODO figure out how to manage this logging
-        // TODO also none of these are actually mv, ma
         if (idx % 10 == 0) {
             if (director.dirA == CHG_DISCHG) {
-                logger_log_iv(&now, LOG_IV_CHG_BAT0, adc_read(CHAN_VB0),
-                              adc_read(CHAN_IC_A));
-                logger_log_iv(&now, LOG_IV_DCH_BAT1, adc_read(CHAN_VB1),
-                              adc_read(CHAN_ID_A));
+                logger_log_iv(&now, LOG_IV_CHG_BAT0,
+                              adc_code_to_mv(adc_read(CHAN_VB0), 6600),
+                              adc_code_to_mv(adc_read(CHAN_IC_A), 6600));
+                logger_log_iv(&now, LOG_IV_DCH_BAT1,
+                              adc_code_to_mv(adc_read(CHAN_VB1), 6600),
+                              adc_code_to_mv(adc_read(CHAN_ID_A), 6600));
             } else {
-                logger_log_iv(&now, LOG_IV_DCH_BAT0, adc_read(CHAN_VB0),
-                              adc_read(CHAN_ID_A));
-                logger_log_iv(&now, LOG_IV_CHG_BAT1, adc_read(CHAN_VB1),
-                              adc_read(CHAN_IC_A));
+                logger_log_iv(&now, LOG_IV_DCH_BAT0,
+                              adc_code_to_mv(adc_read(CHAN_VB0), 6600),
+                              adc_code_to_mv(adc_read(CHAN_ID_A), 6600));
+                logger_log_iv(&now, LOG_IV_CHG_BAT1,
+                              adc_code_to_mv(adc_read(CHAN_VB1), 6600),
+                              adc_code_to_mv(adc_read(CHAN_IC_A), 6600));
             }
             if (director.dirB == CHG_DISCHG) {
-                logger_log_iv(&now, LOG_IV_CHG_BAT2, adc_read(CHAN_VB2),
-                              adc_read(CHAN_IC_B));
-                logger_log_iv(&now, LOG_IV_DCH_BAT3, adc_read(CHAN_VB3),
-                              adc_read(CHAN_ID_B));
+                logger_log_iv(&now, LOG_IV_CHG_BAT2,
+                              adc_code_to_mv(adc_read(CHAN_VB2), 6600),
+                              adc_code_to_mv(adc_read(CHAN_IC_B), 6600));
+                logger_log_iv(&now, LOG_IV_DCH_BAT3,
+                              adc_code_to_mv(adc_read(CHAN_VB3), 6600),
+                              adc_code_to_mv(adc_read(CHAN_ID_B), 6600));
             } else {
-                logger_log_iv(&now, LOG_IV_DCH_BAT2, adc_read(CHAN_VB2),
-                              adc_read(CHAN_ID_B));
-                logger_log_iv(&now, LOG_IV_CHG_BAT3, adc_read(CHAN_VB3),
-                              adc_read(CHAN_IC_B));
+                logger_log_iv(&now, LOG_IV_DCH_BAT2,
+                              adc_code_to_mv(adc_read(CHAN_VB2), 6600),
+                              adc_code_to_mv(adc_read(CHAN_ID_B), 6600));
+                logger_log_iv(&now, LOG_IV_CHG_BAT3,
+                              adc_code_to_mv(adc_read(CHAN_VB3), 6600),
+                              adc_code_to_mv(adc_read(CHAN_IC_B), 6600));
             }
         }
     }
