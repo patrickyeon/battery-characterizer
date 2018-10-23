@@ -67,7 +67,10 @@ $(TARGETDIR)%.elf: %.c targetsrc driversrc
 	$(ARM_PREFIX)size -Ax $(TARGETDIR)$*.elf
 
 test: $(RESULTS)
-	grep -v "PASS$$\\|^$$\\|^-*$$\\|^OK$$\\| 0 Failures 0 Ignored $$" $^
+	@echo "=== TEST FAILURES ==="
+	@# need the `|| true` because it's not a failed build if no lines match
+	@grep -v "PASS$$\\|^$$\\|^-*$$\\|^OK$$\\| 0 Failures 0 Ignored $$" $^ || true
+	@echo "===   ===   ===   ==="
 
 $(RESULTDIR)%.txt: $(NATIVETESTDIR)%.o
 	-./$< > $@ 2>&1
