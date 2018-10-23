@@ -67,7 +67,7 @@ $(TARGETDIR)%.elf: %.c targetsrc driversrc
 	$(ARM_PREFIX)size -Ax $(TARGETDIR)$*.elf
 
 test: $(RESULTS)
-	cat $^
+	grep -v "PASS$$\\|^$$\\|^-*$$\\|^OK$$\\| 0 Failures 0 Ignored $$" $^
 
 $(RESULTDIR)%.txt: $(NATIVETESTDIR)%.o
 	-./$< > $@ 2>&1
