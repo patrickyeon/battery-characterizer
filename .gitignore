@@ -8,3 +8,6 @@ hw/*/*.xml
 hw/*/*_bom_.csv
 hw/*.zip
 *.pdf
+docs/*.raw
+docs/*.log
+
