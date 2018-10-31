@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name local)(type Legacy)(uri /home/pat/projects/batteries/hw/instrumentationamp/library/local.lib)(options "")(descr ""))
+)

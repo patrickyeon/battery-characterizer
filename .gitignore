@@ -1,0 +1,10 @@
+_autosave*
+fw/build/
+*-cache.lib
+*.bak
+*-bak
+hw/*/*.net
+hw/*/*.xml
+hw/*/*_bom_.csv
+hw/*.zip
+*.pdf
