@@ -57,19 +57,19 @@ void pwm_out(uint32_t pin, uint16_t duty_frac) {
     switch (pin) {
     case SET_ID_A:
         idx = 0;
-        oc = TIM_OC1;
+        oc = TIM_OC3;
         break;
     case SET_ID_B:
         idx = 1;
-        oc = TIM_OC2;
+        oc = TIM_OC4;
         break;
     case SET_IC_A:
         idx = 2;
-        oc = TIM_OC3;
+        oc = TIM_OC1;
         break;
     case SET_IC_B:
         idx = 3;
-        oc = TIM_OC4;
+        oc = TIM_OC2;
         break;
     default:
         assert(0);
