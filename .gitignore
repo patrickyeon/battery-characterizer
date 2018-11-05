@@ -6,7 +6,7 @@ fw/build/
 hw/*/*.net
 hw/*/*.xml
 hw/*/*_bom_.csv
-hw/*.zip
+hw/*/outputs/*.zip
 *.pdf
 docs/*.raw
 docs/*.log

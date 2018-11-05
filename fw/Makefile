@@ -17,7 +17,8 @@ else
 $(warning using $(HWID))
 endif
 
-CFLAGS = -ggdb -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0 -Wall -Werror #-Wextra -Wpedantic
+USERFLAGS ?= 
+CFLAGS = -ggdb -std=c99 -I$(OPENCM3_DIR)/include -DSTM32F0 -Wall -Werror $(USERFLAGS) #-Wextra -Wpedantic
 NATIVE_CFLAGS = -DHWID=0x1337 $(CFLAGS)
 
 ARM_ARCH_FLAGS = -mthumb -mcpu=cortex-m0 -Os -flto

@@ -98,13 +98,17 @@ static int _enable(dir_state_e which) {
         // already enabled
         return 0;
     }
+#ifndef DIRECTOR_UNSAFE
     int16_t temp = _temp_for(which);
     uint16_t vbat = _voltage_for(which);
     if (min_temp <= temp && temp <= max_temp
         && vbat_min <= vbat && vbat <= vbat_max) {
+#endif // DIRECTOR_UNSAFE
         *flag = true;
         gpio_set(port, pin);
+#ifndef DIRECTOR_UNSAFE
     }
+#endif
     return 0;
 }
 
@@ -178,7 +182,9 @@ int director_disable(dir_state_t target) {
 
 static uint32_t _check(bool condition, dir_state_e channel, dir_err_e errcode) {
     if (condition) {
+#ifndef DIRECTOR_UNSAFE
         _disable(channel);
+#endif // DIRECTOR_UNSAFE
         return errcode;
     } else {
         return 0;

@@ -24,8 +24,9 @@ void init(void) {
     flash_init();
     logger_init();
     // ohhh, channel list has to be in order
-    uint8_t adc_chans[] = {CHAN_VB1, CHAN_VB0, CHAN_VB3, CHAN_VB2};
-    adc_init(4, adc_chans, ADC_MODE_SCAN);
+    uint8_t adc_chans[] = {CHAN_IC_A, CHAN_IC_B, CHAN_ID_A, CHAN_ID_B,
+                           CHAN_VB1, CHAN_VB0, CHAN_VB3, CHAN_VB2};
+    adc_init(8, adc_chans, ADC_MODE_SCAN);
 
     at30ts74_init(0x48);
     at30ts74_init(0x49);
