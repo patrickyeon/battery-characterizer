@@ -1,0 +1,118 @@
+== STM32F0 Internal Flash with libopencm3
+
+While working on my battery characterizer project, I worked through logging telemetry to the internal flash memory on the STM32F04. It wasn't always straightforward, so I'm writing down my learnings and how I got to what I've got now. Hopefully it's useful to somebody, and even if you're not using the same chip I'll note where I got hints during the process in the hope that they'll port over to another chip.
+
+= Memory Regions
+
+The part datasheet tells us that we have 32KB of flash memory (well, up front it says "16 to 32 Kbytes", but I chose the one that has 32KB so I already knew that). Looking at the Memory Map (section 5), we can see that internal flash is mapped to 0x08000000 to 0x08007fff. This is also visible in the linker script provided by libopencm3:
+
+[code]
+/* Linker script for STM32F04xz6, 32k flash, 6k RAM. */
+
+/* Define memory regions. */
+MEMORY
+{
+	rom (rx) : ORIGIN = 0x08000000, LENGTH = 32K
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 6K
+}
+
+INCLUDE cortex-m-generic.ld
+[/code]
+
+The linker will start off by placing the code in `rom`, so I'm reserving the second half of that section for my log:
+
+[code]
+MEMORY
+{
+	rom (rx) : ORIGIN = 0x08000000, LENGTH = 16K
+	log (r) : ORIGIN = 0x08004000, LENGTH = 16K
+	ram (rwx) : ORIGIN = 0x20000000, LENGTH = 6K
+}
+[/code]
+
+Writing this into the linker file as such means that the linking will fail if the code compiles to more than 16K and overflows the `rom` section:
+
+[bash]
+arm-none-eabi-gcc -Llibopencm3/lib --static -nostartfiles -Tstm32f04xz6_log.ld -mthumb -mcpu=cortex-m0  -ggdb build/target/*.o build/target/main/main.o\
+		build/target/driver/*.o -lopencm3_stm32f0 -o build/target/main.elf
+/usr/lib/gcc/arm-none-eabi/5.4.1/../../../arm-none-eabi/bin/ld: build/target/main.elf section `.text' will not fit in region `rom'
+/usr/lib/gcc/arm-none-eabi/5.4.1/../../../arm-none-eabi/bin/ld: region `rom' overflowed by 3920 bytes
+collect2: error: ld returned 1 exit status
+Makefile:62: recipe for target 'build/target/main.elf' failed
+make: *** [build/target/main.elf] Error 1
+[/bash]
+
+When this happens, we can either work to shrink the compile size (pro tip: use `-Os -flto` compiler and linker flags) or change the size of the `rom` and `log` regions. Not having the `log` section separated like that would lead to just trying to log to memory that already contains compiled code, which is a recipe for pain.
+
+There's probably/definitely a way to reference the start of that `log` region from within the code, so that I only have to change it in the linker script and have everything work together. For now it's just hardcoded in my firmware.
+
+= Erasing and Writing to Flash
+
+As a crash course/reminder on the peculiarities of flash memory: it must be erased a page at a time, erasing sets every bit (so all the bytes are set to 0xff), and writing to flash simply clears the bits needed. You can't re-set individual bits, you need to re-erase a whole page. Flash does allow one to clear even more bits though (so eg. you could zero out some of the memory to remove the data without going through the process of erasing the whole page).
+
+Refering to the Reference Manual, the STM32F04x memory is organized into 1KB pages (the granularity for erasing). I don't use the write protection capabilities (although, I probably should to make sure I don't accidentally try to log into the code section) so I've ignored sector boundaries. For now, we just need to put our `rom`/`log` boundary at a page boundary, and have our design account for erasing 1KB at a time.
+
+Reading through the Reference Manual, we see that there's a subsection about "Unlocking the Flash memory", something about writing keys to a register. Luckily, libopencm3 makes this easy:
+
+[code:c]
+#include <libopencm3/stm32/flash.h>
+
+void flash_init(void) {
+    flash_unlock();
+}
+[/code]
+
+Writing after that happens 16 bits (one half-word) at a time:
+
+[code:c]
+#include <libopencm3/stm32/flash.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+uint8_t flash_write(uint8_t *buff, uint32_t address, size_t len) {
+    // TODO: error-checking
+    for (int i = 0; i < len; i += 2) {
+        flash_program_half_word(address + i, *((uint16_t *)(buff + i)));
+    }
+    return len;
+}
+[/code]
+
+There are a couple subtleties to this operation: Firstly, writes must be half-word aligned. This means that if you try to write to an odd address, the STM32 hard-faults (locks up). Secondly, the flash interface checks the memory being written to before it executes the write, and will only write if at least one of these two conditions are met:
+- The destination half-word has been erased (its pre-write value is 0xffff)
+- The source half-word is 0x0000
+
+This means that if either byte in the target has been written to, the only valid write is 0x0000. Otherwise the write won't happen and an error flag will be set (but otherwise no fault).
+
+Why does this matter? You may have (or at least, I did) planned to only write one byte, and then the second byte later. If you think of how flash memory works, you should be able to "write" 0xff to a byte that's previously written and not affect the stored value. Or selectively clear some bits after others have already been cleared. This was my original plan to track progress through a sequence of events using a bitmask. Oh well.
+
+= Reading from Flash
+
+Flash memory is addressable just like any other piece of memory:
+
+[code:c]
+#include <libopencm3/stm32/flash.h>
+#include <stdint.h>
+
+uint8_t flash_peek(uint32_t address) {
+    return *(uint8_t *)address;
+}
+[/code]
+
+And for larger reads, I've just got a sloppy bytewise copy:
+
+[code:c]
+#include <libopencm3/stm32/flash.h>
+#include <stdint.h>
+
+uint8_t flash_read(uint32_t address, uint8_t *buff, size_t len) {
+    for (int i = 0; i < len; i++) {
+        buff[i] = *((uint8_t *)(address + i));
+    }
+    return len;
+}
+[/code]
+
+This could be sped up by copying 4 bytes at a time (using `uint32_t *` pointers), I've tested and the byte ordering is correct. You just need to make sure to handle `len` that is not a multiple of 4.
+
+There is a section in the Reference Manual about setting up prefetch and flash latency to speed up memory access, but I haven't looked into it. I'm far away from having speed problems, so I'm not worrying about that yet.
