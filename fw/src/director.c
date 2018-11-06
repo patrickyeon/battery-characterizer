@@ -1,27 +1,41 @@
 #include "./adc.h"
 #include "./director.h"
+#include "./logger.h"
 #include "./pindefs.h"
 #include "./temperature.h"
 
 #include <libopencm3/stm32/gpio.h>
+#include <stdbool.h>
 
 struct director_t director;
 
 static int16_t min_temp = 5, max_temp = 35;
 static uint16_t vbat_min, vbat_max;
 
+static int16_t temp_cache[4]; // temperatures
+static bool _logging = false;
+static uint32_t _log_period = 1000;
+static abs_time_t _last_log = (abs_time_t){0, 0};
+
+static void _read_temps(void) {
+    temp_cache[0] = temperature_read(TSENS0);
+    temp_cache[1] = temperature_read(TSENS1);
+    temp_cache[2] = temperature_read(TSENS2);
+    temp_cache[3] = temperature_read(TSENS3);
+}
+
 static int16_t _temp_for(dir_state_e channel) {
     //  if a pair is in CHG_DISCHG, the lower-numbered cell+tsens are charging,
     // and the other cell+tsens are discharging. Swap for DISCHG_CHG.
     switch(channel) {
     case CENA:
-        return temperature_read(director.dirA == CHG_DISCHG ? TSENS0 : TSENS1);
+        return temp_cache[director.dirA == CHG_DISCHG ? 0 : 1];
     case CENB:
-        return temperature_read(director.dirB == CHG_DISCHG ? TSENS2 : TSENS3);
+        return temp_cache[director.dirB == CHG_DISCHG ? 2 : 4];
     case DENA:
-        return temperature_read(director.dirA == CHG_DISCHG ? TSENS1 : TSENS0);
+        return temp_cache[director.dirA == CHG_DISCHG ? 1 : 0];
     case DENB:
-        return temperature_read(director.dirB == CHG_DISCHG ? TSENS3 : TSENS2);
+        return temp_cache[director.dirB == CHG_DISCHG ? 3 : 2];
     }
     // shouldn't end up here, but here's a nonsense temperature
     return 0xffff;
@@ -144,6 +158,12 @@ void director_init(void) {
     vbat_min = adc_mv_to_code(2500, 6600);
     vbat_max = adc_mv_to_code(4200, 6600);
 
+    _last_log = (abs_time_t){0, 0};
+    _log_period = 1000;
+    _logging = false;
+
+    _read_temps();
+
     _disable(CENA);
     _disable(CENB);
     _disable(DENA);
@@ -224,4 +244,68 @@ uint32_t director_checkup(void) {
                                     ERR_OVERVOLT_CELL3 : ERR_OVERVOLT_CELL2));
     }
     return retval;
+}
+
+void director_tick(void) {
+    uint32_t err = director_checkup();
+    abs_time_t now = systime();
+    if (_logging && err) {
+        logger_log_error(&now, err);
+    }
+    if (_logging && ms_elapsed(&_last_log, &now) > _log_period) {
+        // TODO also log state, temperature
+        if (director.dirA == CHG_DISCHG) {
+            logger_log_iv(&now, LOG_IV_CHG_BAT0,
+                          adc_code_to_mv(adc_read(CHAN_VB0), 6600),
+                          adc_code_to_mv(adc_read(CHAN_IC_A), 6600));
+            logger_log_iv(&now, LOG_IV_DCH_BAT1,
+                          adc_code_to_mv(adc_read(CHAN_VB1), 6600),
+                          adc_code_to_mv(adc_read(CHAN_ID_A), 6600));
+        } else {
+            logger_log_iv(&now, LOG_IV_DCH_BAT0,
+                          adc_code_to_mv(adc_read(CHAN_VB0), 6600),
+                          adc_code_to_mv(adc_read(CHAN_ID_A), 6600));
+            logger_log_iv(&now, LOG_IV_CHG_BAT1,
+                          adc_code_to_mv(adc_read(CHAN_VB1), 6600),
+                          adc_code_to_mv(adc_read(CHAN_IC_A), 6600));
+        }
+        if (director.dirB == CHG_DISCHG) {
+            logger_log_iv(&now, LOG_IV_CHG_BAT2,
+                          adc_code_to_mv(adc_read(CHAN_VB2), 6600),
+                          adc_code_to_mv(adc_read(CHAN_IC_B), 6600));
+            logger_log_iv(&now, LOG_IV_DCH_BAT3,
+                          adc_code_to_mv(adc_read(CHAN_VB3), 6600),
+                          adc_code_to_mv(adc_read(CHAN_ID_B), 6600));
+        } else {
+            logger_log_iv(&now, LOG_IV_DCH_BAT2,
+                          adc_code_to_mv(adc_read(CHAN_VB2), 6600),
+                          adc_code_to_mv(adc_read(CHAN_ID_B), 6600));
+            logger_log_iv(&now, LOG_IV_CHG_BAT3,
+                          adc_code_to_mv(adc_read(CHAN_VB3), 6600),
+                          adc_code_to_mv(adc_read(CHAN_IC_B), 6600));
+        }
+        // TODO I forget what I was going to log as stat flags :/
+        logger_log_temp_stat(&now, LOG_TEMPSTAT_BAT0, temp_cache[0], 0);
+        logger_log_temp_stat(&now, LOG_TEMPSTAT_BAT1, temp_cache[1], 0);
+        logger_log_temp_stat(&now, LOG_TEMPSTAT_BAT2, temp_cache[2], 0);
+        logger_log_temp_stat(&now, LOG_TEMPSTAT_BAT3, temp_cache[3], 0);
+
+        _last_log = now;
+    }
+    _read_temps();
+    adc_scan();
+}
+
+void director_log_rate(uint16_t period) {
+    if (period > 0) {
+        _log_period = 10 * period;
+    }
+}
+
+void director_log_start(void) {
+    _logging = true;
+}
+
+void director_log_stop(void) {
+    _logging = false;
 }

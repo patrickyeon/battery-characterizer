@@ -236,6 +236,32 @@ void commands_process(void) {
         usb_write(resp, RLEN);
         break;
 
+    case CMD_SET_LOG_PERIOD:
+        u16 = UNPACK2(cmdbuff, 2);
+        if (u16 == 0) {
+            resp[1] = CMD_NAK;
+        } else {
+            director_log_rate(u16);
+            resp[1] = CMD_SET_LOG_PERIOD;
+            resp[2] = (u16 >> 8) & 0xff;
+            resp[3] = u16 & 0xff;
+        }
+        usb_write(resp, RLEN);
+        break;
+
+    case CMD_LOG_EN_DIS:
+        if (cmdbuff[2] == 1) {
+            director_log_start();
+            resp[1] = CMD_ACK;
+        } else if (cmdbuff[2] == 2) {
+            director_log_stop();
+            resp[1] = CMD_ACK;
+        } else {
+            resp[1] = CMD_NAK;
+        }
+        usb_write(resp, RLEN);
+        break;
+
     default:
         resp[1] = CMD_NAK;
         resp[2] = cmdbuff[1];

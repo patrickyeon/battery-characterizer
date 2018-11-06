@@ -56,5 +56,9 @@ int director_disable(dir_state_t);
 void director_direction(chg_direction_e a, chg_direction_e b);
 
 uint32_t director_checkup(void);
+void director_tick(void);
+void director_log_rate(uint16_t period);
+void director_log_start(void);
+void director_log_stop(void);
 
 #endif // DIRECTOR_H

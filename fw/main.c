@@ -34,56 +34,11 @@ void init(void) {
     at30ts74_init(0x4d);
 }
 
-static int16_t temperature[4];
-static const tsens_e tsens[4] = {TSENS0, TSENS1, TSENS2, TSENS3};
 static bool logging = false;
 static uint32_t long_tenhz = 0;
 
 static void tenhz(void) {
-    static int idx = 0;
-    abs_time_t now = systime();
-    uint32_t err = director_checkup();
-    if (logging) {
-        if (err) {
-            logger_log_error(&now, err);
-        }
-        // TODO figure out how to manage this logging
-        if (idx % 10 == 0) {
-            if (director.dirA == CHG_DISCHG) {
-                logger_log_iv(&now, LOG_IV_CHG_BAT0,
-                              adc_code_to_mv(adc_read(CHAN_VB0), 6600),
-                              adc_code_to_mv(adc_read(CHAN_IC_A), 6600));
-                logger_log_iv(&now, LOG_IV_DCH_BAT1,
-                              adc_code_to_mv(adc_read(CHAN_VB1), 6600),
-                              adc_code_to_mv(adc_read(CHAN_ID_A), 6600));
-            } else {
-                logger_log_iv(&now, LOG_IV_DCH_BAT0,
-                              adc_code_to_mv(adc_read(CHAN_VB0), 6600),
-                              adc_code_to_mv(adc_read(CHAN_ID_A), 6600));
-                logger_log_iv(&now, LOG_IV_CHG_BAT1,
-                              adc_code_to_mv(adc_read(CHAN_VB1), 6600),
-                              adc_code_to_mv(adc_read(CHAN_IC_A), 6600));
-            }
-            if (director.dirB == CHG_DISCHG) {
-                logger_log_iv(&now, LOG_IV_CHG_BAT2,
-                              adc_code_to_mv(adc_read(CHAN_VB2), 6600),
-                              adc_code_to_mv(adc_read(CHAN_IC_B), 6600));
-                logger_log_iv(&now, LOG_IV_DCH_BAT3,
-                              adc_code_to_mv(adc_read(CHAN_VB3), 6600),
-                              adc_code_to_mv(adc_read(CHAN_ID_B), 6600));
-            } else {
-                logger_log_iv(&now, LOG_IV_DCH_BAT2,
-                              adc_code_to_mv(adc_read(CHAN_VB2), 6600),
-                              adc_code_to_mv(adc_read(CHAN_ID_B), 6600));
-                logger_log_iv(&now, LOG_IV_CHG_BAT3,
-                              adc_code_to_mv(adc_read(CHAN_VB3), 6600),
-                              adc_code_to_mv(adc_read(CHAN_IC_B), 6600));
-            }
-        }
-    }
-    adc_scan();
-    temperature[idx % 4] = temperature_read(tsens[idx % 4]);
-    idx++;
+    director_tick();
 }
 
 static void onehz(void) {
@@ -113,6 +68,7 @@ int main(void) {
         } else if (ms_elapsed(&last_onehz, &now) >= 1000) {
             last_onehz = now;
             onehz();
+            long_tenhz = 0;
         }
         usb_poll();
         commands_process();
