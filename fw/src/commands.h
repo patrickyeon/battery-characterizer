@@ -24,6 +24,7 @@ typedef enum cmd_msg_e {
     CMD_CURRENT_SET,
     CMD_SET_LOG_PERIOD, // 10
     CMD_LOG_EN_DIS,
+    CMD_DEBUG,
     CMD_RESERVED = CMD_STARTBYTE
 } cmd_msg_e;
 

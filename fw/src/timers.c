@@ -24,6 +24,13 @@ void timers_init(void) {
     timer_set_prescaler(TIM14, 96);
     timer_disable_preload(TIM14);
     timer_one_shot_mode(TIM14);
+    //  Calling tick() the first time doesn't work unless the timer has already
+    // been started here. I assume it's because of calling timer_disable_counter
+    // before calling timer_enable_counter, but don't know why it works the next
+    // time around. We'll start it off but force it to roll-over right away so
+    // that we still need a valid tick before calling tock.
+    timer_set_counter(TIM14, 0xff);
+    timer_enable_counter(TIM14);
 
 
     systick_interrupt_enable();
@@ -73,6 +80,7 @@ uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to) {
 }
 
 void tick(void) {
+    timer_disable_counter(TIM14);
     timer_set_counter(TIM14, 0);
     timer_enable_counter(TIM14);
 }

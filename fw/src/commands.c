@@ -73,7 +73,6 @@ void commands_process(void) {
 
     case CMD_PING:
         resp[1] = CMD_PONG;
-        usb_write(resp, RLEN);
         break;
 
     case CMD_TAG:
@@ -87,7 +86,6 @@ void commands_process(void) {
             resp[1] = CMD_NAK;
             resp[2] = CMD_TAG;
         }
-        usb_write(resp, RLEN);
         break;
 
     case CMD_TIME_SET:
@@ -104,7 +102,6 @@ void commands_process(void) {
         resp[5] = now.sec & 0xff;
         resp[6] = (now.ms >> 8) & 0xff;
         resp[7] = now.ms & 0xff;
-        usb_write(resp, RLEN);
         break;
 
     case CMD_DEQUEUE_LOG:
@@ -122,7 +119,6 @@ void commands_process(void) {
             resp[7] = log_msg.payload[2];
             resp[8] = log_msg.payload[3];
         }
-        usb_write(resp, RLEN);
         break;
 
     case CMD_WIPE_LOG:
@@ -130,7 +126,6 @@ void commands_process(void) {
             flash_erase(i);
         }
         resp[1] = CMD_ACK;
-        usb_write(resp, RLEN);
         break;
 
     case CMD_FLASH_PEEK:
@@ -144,7 +139,6 @@ void commands_process(void) {
                 resp[i + 2] = flash_peek(u32 + i);
             }
         }
-        usb_write(resp, RLEN);
         break;
 
     case CMD_FLASH_READ:
@@ -156,13 +150,11 @@ void commands_process(void) {
             resp[1] = CMD_FLASH_READ;
             flash_read(u32, resp + 2, cmdbuff[6]);
         }
-        usb_write(resp, RLEN);
         break;
 
     case CMD_ADC_SCAN:
         adc_scan();
         resp[1] = CMD_ADC_SCAN;
-        usb_write(resp, RLEN);
         break;
 
     case CMD_ADC_READ:
@@ -170,7 +162,6 @@ void commands_process(void) {
         resp[1] = CMD_ADC_READ;
         resp[2] = (uint8_t)(u16 >> 8);
         resp[3] = u16 & 0xff;
-        usb_write(resp, RLEN);
         break;
 
     case CMD_TEMP_READ:
@@ -178,7 +169,6 @@ void commands_process(void) {
         resp[1] = CMD_TEMP_READ;
         resp[2] = (uint8_t)((i16 >> 8) & 0xff);
         resp[3] = (uint8_t)(i16 & 0xff);
-        usb_write(resp, RLEN);
         break;
 
     case CMD_CENDEN_SET:
@@ -205,7 +195,6 @@ void commands_process(void) {
             director_disable(DENB);
         }
         resp[1] = CMD_CENDEN_SET;
-        usb_write(resp, RLEN);
         break;
 
     case CMD_CURRENT_SET:
@@ -233,7 +222,6 @@ void commands_process(void) {
             resp[1] = CMD_NAK;
             resp[2] = CMD_CURRENT_SET;
         }
-        usb_write(resp, RLEN);
         break;
 
     case CMD_SET_LOG_PERIOD:
@@ -246,7 +234,6 @@ void commands_process(void) {
             resp[2] = (u16 >> 8) & 0xff;
             resp[3] = u16 & 0xff;
         }
-        usb_write(resp, RLEN);
         break;
 
     case CMD_LOG_EN_DIS:
@@ -259,12 +246,28 @@ void commands_process(void) {
         } else {
             resp[1] = CMD_NAK;
         }
-        usb_write(resp, RLEN);
         break;
+
+    case CMD_DEBUG:
+        if (cmdbuff[2] == 1) {
+            tick();
+            resp[1] = CMD_ACK;
+        } else if (cmdbuff[2] == 2) {
+            u32 = tock();
+            resp[1] = CMD_DEBUG;
+            resp[2] = (u32 >> 24) & 0xff;
+            resp[3] = (u32 >> 16) & 0xff;
+            resp[4] = (u32 >> 8) & 0xff;
+            resp[5] = u32 & 0xff;
+        } else {
+            resp[1] = CMD_NAK;
+        }
+        break;
+
 
     default:
         resp[1] = CMD_NAK;
         resp[2] = cmdbuff[1];
-        usb_write(resp, RLEN);
     }
+    usb_write(resp, RLEN);
 }
