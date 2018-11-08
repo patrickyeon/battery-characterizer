@@ -253,38 +253,3 @@ class bc:
         self._send(req)
         self.expect(ACK)
 
-    def ticktock(self):
-        self._send([0x12, 0x01])
-        self.expect(ACK)
-        time.sleep(0.003)
-        self._send([0x12, 0x02])
-        resp = self.expect(0x12)
-        print '300:', unpack(resp['value'][:4]) / 10.
-
-        time.sleep(0.008)
-        self._send([0x12, 0x02])
-        resp = self.expect(0x12)
-        print '1100:', unpack(resp['value'][:4]) / 10.
-
-        time.sleep(0.1)
-        self._send([0x12, 0x02])
-        resp = self.expect(0x12)
-        print '101100:', unpack(resp['value'][:4]) / 10.
-
-        self._send([0x12, 0x01])
-        self.expect(ACK)
-        time.sleep(0.003)
-        self._send([0x12, 0x02])
-        resp = self.expect(0x12)
-        print '300:', unpack(resp['value'][:4]) / 10.
-
-    def ticktock2(self):
-        self._send([0x12, 0x01])
-        self.expect(ACK)
-        tstart = time.time()
-        for i in range(5):
-            self._send([0x12, 0x02])
-            resp = self.expect(0x12)
-            print '', unpack(resp['value'][:4]) / 10.
-        print 'wallclock: ', (time.time() - tstart)
-
