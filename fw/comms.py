@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import json
 import serial
 import time
 
@@ -36,13 +37,17 @@ def load_cmds(filename=None):
     if filename is None:
         filename = 'cmd_def.json'
     with open(filename) as f:
-        Cmd_dict = json.load(f)
+        Cmd_dict = {int(k): v for k,v in json.load(f)['commands'].items()}
 
 class Packet:
-    _reformat = {'int1': lambda x: (x | 0x7f) - 0x80,
-                 'int2': lambda x: (x | 0x7fff) - 0x8000,
-                 'int3': lambda x: (x | 0x7fffff) - 0x800000,
-                 'int4': lambda x: (x | 0x7fffffff) - 0x80000000,
+    _reformat = {'int1': lambda x: (x & 0x7f) - 0x80 \
+                                   if x > 0x7f else x,
+                 'int2': lambda x: (x & 0x7fff) - 0x8000 \
+                                   if x > 0x7fff else x,
+                 'int3': lambda x: (x & 0x7fffff) - 0x800000 \
+                                   if x > 0x7fffff else x,
+                 'int4': lambda x: (x & 0x7fffffff) - 0x80000000 \
+                                   if x >  0x7fffffff else x,
                  'uint': int,
                  'float': float,
                  'hex': hex,
@@ -56,11 +61,11 @@ class Packet:
                 load_cmds()
             cmds = Cmd_dict
 
-        if intlist[0] not in cmds['commands']:
-            raise Exception('command byte not defined')
+        if intlist[0] not in cmds:
+            raise PacketException('command byte not defined')
 
-        cmd = cmds['commands'][pkt[0]]
         self.raw = intlist
+        cmd = cmds[intlist[0]]
         self.fields = odict()
         self.label = cmd['label']
         i = 1
@@ -73,17 +78,16 @@ class Packet:
                 parser = self._reformat[ftype]
 
             if field[2] == 'bytes':
-                raw = pkt[i : i + flen]
+                raw = intlist[i : i + flen]
             else:
-                raw = unpack(pkt[i : i + flen])
+                raw = unpack(intlist[i : i + flen])
             i += flen
             self.fields[field[1]] = parser(raw)
 
-            self.fields.append((parser(raw), ftype))
         if 'print' in cmd:
             self.fmtline = cmd['print']
         else:
-            self.fmtline = ('{label}: ' +
+            self.fmtline = ('{label}: '
                             + ''.join(['{{{}}} ({})'.format(v,k) 
                                        for k,v in self.fields.items()]))
 
@@ -127,9 +131,10 @@ class bc:
         # TODO checksum
         try:
             pkt = Packet([ord(c) for c in retval[:-1]])
-        except Exception as e:
+        except PacketException as e:
             if self.echo:
-                print 'unknown command: ' + str(hexify(retval))
+                print e
+                #print 'unknown command: ' + str(hexify(retval))
             raise e
         if self.echo:
             print pkt
@@ -137,8 +142,8 @@ class bc:
 
     def expect(self, pkt_type):
         resp = self._read_pkt()
-        if resp[0] != pkt_type:
-            raise ResponseException(pkt_type, resp[0])
+        if resp.raw[0] != pkt_type:
+            raise ResponseException(pkt_type, resp.raw[0])
         return resp
 
     def ping(self):
@@ -149,12 +154,12 @@ class bc:
     def get_time(self):
         self._send([0x05])
         ret = self.expect(0x06)
-        return ret['sec'] + ret['msec'] * 0.001
+        return ret['sec'] + ret['ms'] * 0.001
 
     def set_time(self, sec, ms=0):
         self._send([0x06] + pack(sec, 4) + pack(ms, 2))
         ret = self.expect(0x06)
-        return ret['sec'] + ret['msec'] * 0.001
+        return ret['sec'] + ret['ms'] * 0.001
 
     def tag(self, tag):
         tag = tag[:4]
@@ -201,7 +206,7 @@ class bc:
             self._send([0x0b, chan])
             try:
                 resp = self.expect(0x0b)
-                adcs.append(resp[1] * 0x100 + resp[2])
+                adcs.append(resp['value'])
             except ResponseException:
                 adcs.append(-1)
         return odict(zip('ic_a ic_b id_a id_b vb_1 vb_0 vb_3 vb_2'.split(),
@@ -254,24 +259,24 @@ class bc:
         time.sleep(0.003)
         self._send([0x12, 0x02])
         resp = self.expect(0x12)
-        print '3:', unpack(resp['value'][:4]) / 10.
+        print '300:', unpack(resp['value'][:4]) / 10.
 
         time.sleep(0.008)
         self._send([0x12, 0x02])
         resp = self.expect(0x12)
-        print '11:', unpack(resp['value'][:4]) / 10.
+        print '1100:', unpack(resp['value'][:4]) / 10.
 
         time.sleep(0.1)
         self._send([0x12, 0x02])
         resp = self.expect(0x12)
-        print '111:', unpack(resp['value'][:4]) / 10.
+        print '101100:', unpack(resp['value'][:4]) / 10.
 
         self._send([0x12, 0x01])
         self.expect(ACK)
-        time.sleep(0.3)
+        time.sleep(0.003)
         self._send([0x12, 0x02])
         resp = self.expect(0x12)
-        print '411:', unpack(resp['value'][:4]) / 10.
+        print '300:', unpack(resp['value'][:4]) / 10.
 
     def ticktock2(self):
         self._send([0x12, 0x01])
