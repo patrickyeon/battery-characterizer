@@ -198,7 +198,13 @@ class bc:
         else:
             print hexify(resp[1:nbytes + 1])
 
-    def adc_read(self):
+    def read_adc(self, chan):
+        self._send([0x0e])
+        self.expect(0x0e)
+        self._send([0x0b, chan])
+        return self.expect(0x0b)
+
+    def read_all_adcs(self):
         adcs = []
         self._send([0x0e])
         self.expect(0x0e)
@@ -245,7 +251,7 @@ class bc:
             if t:
                 req[2] = req[2] | (2 ** i)
         self._send(req)
-        self.expect(ACK)
+        self.expect(0x0d)
 
     def set_i(self, chan, val):
         #channels: 0 = IDA, 1 = IDB, 2 = ICA, 3 = ICB

@@ -32,8 +32,7 @@
 		},
 		"11": {
 				"label": "adc_read",
-				"payload": [[1, "channel", "uint"],
-						    [2, "value", "uint"]]
+				"payload": [[2, "value", "uint"]]
 		},
 		"12": {
 				"label": "temp_read",
