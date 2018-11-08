@@ -18,7 +18,7 @@ void timers_init(void) {
     _sec = 0;
     systick_clear();
 
-    // TIM14 for tick/tock
+    // TIM14 for loop tick/tock
     rcc_periph_clock_enable(RCC_TIM14);
     rcc_periph_reset_pulse(RST_TIM14);
     timer_set_prescaler(TIM14, 96);
@@ -31,6 +31,16 @@ void timers_init(void) {
     // that we still need a valid tick before calling tock.
     timer_set_counter(TIM14, 0xff);
     timer_enable_counter(TIM14);
+
+    // TIM16 for general purpose tick/tock
+    rcc_periph_clock_enable(RCC_TIM16);
+    rcc_periph_reset_pulse(RST_TIM16);
+    timer_set_prescaler(TIM16, 96);
+    timer_disable_preload(TIM16);
+    timer_one_shot_mode(TIM16);
+    timer_set_counter(TIM16, 0xff);
+    timer_enable_counter(TIM16);
+
 
 
     systick_interrupt_enable();
@@ -79,12 +89,31 @@ uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to) {
     }
 }
 
-void tick(void) {
-    timer_disable_counter(TIM14);
-    timer_set_counter(TIM14, 0);
-    timer_enable_counter(TIM14);
+static inline uint32_t timer_for_ticker(ticker_e ticker) {
+    switch (ticker) {
+    case TIMER_LOOP:
+        return TIM14;
+    case TIMER_GEN:
+        return TIM16;
+    default:
+        return 0;
+    }
 }
 
-uint32_t tock(void) {
-    return timer_get_counter(TIM14) * 2;
+void tick(ticker_e ticker) {
+    uint32_t tim = timer_for_ticker(ticker);
+    if (tim == 0) {
+        return;
+    }
+    timer_disable_counter(tim);
+    timer_set_counter(tim, 0);
+    timer_enable_counter(tim);
+}
+
+uint32_t tock(ticker_e ticker) {
+    uint32_t tim = timer_for_ticker(ticker);
+    if (tim == 0) {
+        return 0;
+    }
+    return timer_get_counter(tim) * 2;
 }

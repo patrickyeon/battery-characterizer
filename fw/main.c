@@ -59,9 +59,9 @@ int main(void) {
         if (ms_elapsed(&last_tenhz, &now) >= 100) {
             // 10hz loop
             last_tenhz = now;
-            tick();
+            tick(TIMER_LOOP);
             tenhz();
-            uint32_t t = tock();
+            uint32_t t = tock(TIMER_LOOP);
             if (t > long_tenhz) {
                 long_tenhz = t;
             }

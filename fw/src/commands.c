@@ -250,10 +250,10 @@ void commands_process(void) {
 
     case CMD_DEBUG:
         if (cmdbuff[2] == 1) {
-            tick();
+            tick(TIMER_GEN);
             resp[1] = CMD_ACK;
         } else if (cmdbuff[2] == 2) {
-            u32 = tock();
+            u32 = tock(TIMER_GEN);
             resp[1] = CMD_DEBUG;
             resp[2] = (u32 >> 24) & 0xff;
             resp[3] = (u32 >> 16) & 0xff;

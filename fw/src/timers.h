@@ -22,7 +22,12 @@ void timers_set_systime(uint32_t sec, uint16_t ms);
 abs_time_t systime(void);
 uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to);
 
-void tick(void);
-uint32_t tock(void);
+typedef enum ticker_e {
+    TIMER_LOOP, // used for main loop timing, do not use
+    TIMER_GEN // general purpose, use wherever but only one "wherever" at a time
+} ticker_e;
+
+void tick(ticker_e ticker);
+uint32_t tock(ticker_e ticker);
 
 #endif // TIMERS_H
