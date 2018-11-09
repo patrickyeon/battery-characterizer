@@ -66,6 +66,10 @@
 		{"label": "debug",
 				"payload": [[8, "value", "bytes"]]
 		},
+		{"label": "hwid_get"},
+		{"label": "hwid_set",
+				"payload": [[16, "hwid", "uint"]]
+		},
 		{"label": "startbyte",
 				"index": 165
 		}

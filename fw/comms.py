@@ -1,7 +1,11 @@
 #!/usr/bin/python
 
+import fcntl
 import json
+import os
+import re
 import serial
+import termios
 import time
 
 from collections import OrderedDict as odict
@@ -143,7 +147,11 @@ class bc:
             msgs = msg_dict
         self.msgs = msgs
         self.ser = serial.Serial(port, 19200, timeout=1, write_timeout=1)
+        fcntl.ioctl(self.ser.fileno(), termios.TIOCEXCL)
         self.echo = echo
+
+    def __del__(self):
+        self.ser.close()
 
     def _send(self, str_or_bstream, **values):
         if type(str_or_bstream) == str:
@@ -234,18 +242,6 @@ class bc:
         self.rx_for('adc_scan', 'adc_scan')
         return self.rx_for('adc_read', 'adc_read', channel=chan).fields
 
-    def read_all_adcs(self):
-        adcs = []
-        self.rx_for('adc_scan', 'adc_scan')
-        for chan in range(8):
-            try:
-                resp = self.rx_for('adc_read', 'adc_read', channel=chan)
-                adcs.append(resp['value'])
-            except ResponseException:
-                adcs.append(-1)
-        return odict(zip('ic_a ic_b id_a id_b vb_1 vb_0 vb_3 vb_2'.split(),
-                         adcs))
-
     def flush_read(self):
         nflushed = 0
         while True:
@@ -287,3 +283,42 @@ class bc:
         #channels: 0 = IDA, 1 = IDB, 2 = ICA, 3 = ICB
         self.rx_for('current_set', 'current_set', channel=chan, ma=val)
         return True
+
+    def get_hwid(self):
+        return self.rx_for('hwid_set', 'hwid_get')['hwid']
+
+class TestFoo(bc):
+    def read_all_adcs(self):
+        adcs = []
+        self.rx_for('adc_scan', 'adc_scan')
+        for chan in range(8):
+            try:
+                resp = self.rx_for('adc_read', 'adc_read', channel=chan)
+                adcs.append(resp['value'])
+            except ResponseException:
+                adcs.append(-1)
+        return odict(zip('ic_a ic_b id_a id_b vb_1 vb_0 vb_3 vb_2'.split(),
+                         adcs))
+
+class Characterizer(bc):
+    def __init__(self, hwid, cell_serials, tty=None):
+        assert(len(cell_serials) == 4)
+        if tty is None:
+            tty = self.search_hwid(hwid)
+        self.cells = cell_serials
+        bc.__init__(self, tty)
+
+    @classmethod
+    def search_hwid(cls, hwid):
+        # assumes that all battery characterizers enumerate as /dev/ttybcN
+        candidates = ['/dev/' + dev for dev in os.listdir('/dev/')
+                      if re.match('ttybc[0-9]*$', dev) is not None]
+        for c in candidates:
+            try:
+                dev = bc(c)
+                if dev.get_hwid() == hwid:
+                    del dev
+                    return c
+            except serial.SerialException:
+                pass
+        raise Exception('could not find hwid {}'.format(hwid))
