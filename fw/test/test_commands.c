@@ -4,7 +4,7 @@
 #include "../fake/fake_usb.h"
 
 #define cmd_sz 11
-#define rsp_sz 10
+#define rsp_sz 15
 
 void setup(void) {
     usb_init();

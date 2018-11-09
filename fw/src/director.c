@@ -31,7 +31,7 @@ static int16_t _temp_for(dir_state_e channel) {
     case CENA:
         return temp_cache[director.dirA == CHG_DISCHG ? 0 : 1];
     case CENB:
-        return temp_cache[director.dirB == CHG_DISCHG ? 2 : 4];
+        return temp_cache[director.dirB == CHG_DISCHG ? 2 : 3];
     case DENA:
         return temp_cache[director.dirA == CHG_DISCHG ? 1 : 0];
     case DENB:

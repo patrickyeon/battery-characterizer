@@ -19,9 +19,9 @@ void test_simple_systick(void) {
 void test_tick_tock(void) {
     fake_time_init(48*1000*1000);
     timers_init();
-    tick();
+    tick(TIMER_LOOP);
     fake_time_run(ms_to_ticks(10));
-    uint16_t tpassed = tock();
+    uint16_t tpassed = tock(TIMER_LOOP);
     TEST_ASSERT_INT_WITHIN(3, 10*1000, tpassed);
 }
 

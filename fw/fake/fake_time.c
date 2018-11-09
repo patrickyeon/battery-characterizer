@@ -24,13 +24,13 @@ static int _idx(uint32_t timer_peripheral) {
         return 2;
     case TIM14:
         return 3;
+    case TIM16:
+        return 4;
     // TODO skipping a bunch because they aren't implemented yet
     case TIM1:
         //return 0;
     case TIM2:
         //return 1;
-    case TIM16:
-        //return 4;
     case TIM17:
         //return 5;
     default:
@@ -135,6 +135,10 @@ void timer_enable_counter(uint32_t timer_peripheral) {
     timers[_idx(timer_peripheral)].enabled = true;
 }
 
+void timer_disable_counter(uint32_t timer_peripheral) {
+    timers[_idx(timer_peripheral)].enabled = false;
+}
+
 void timer_set_counter(uint32_t timer_peripheral, uint32_t count) {
     // limit to 16b where applicable
     if (timer_peripheral != TIM2) {
@@ -161,11 +165,9 @@ void timer_set_oc_mode(uint32_t timer_peripheral, enum tim_oc_id oc_id,
 }
 void timer_enable_oc_output(uint32_t timer_peripheral, enum tim_oc_id oc_id) {
 }
-
 bool timer_get_flag(uint32_t timer_peripheral, uint32_t flag) {
     return false;
 }
-
 void timer_clear_flag(uint32_t timer_peripheral, uint32_t flag) {
 }
 

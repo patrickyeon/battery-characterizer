@@ -14,11 +14,11 @@ void setup(int16_t setpoint, uint16_t vcells) {
     gpio_init();
     uint8_t chans[] = {CHAN_VB0, CHAN_VB1, CHAN_VB2, CHAN_VB3};
     adc_init(4, chans, ADC_MODE_SCAN_INFINITE);
-    director_init();
     fake_at30ts74_set(TSENS0, setpoint);
     fake_at30ts74_set(TSENS1, setpoint);
     fake_at30ts74_set(TSENS2, setpoint);
     fake_at30ts74_set(TSENS3, setpoint);
+    director_init();
 
     fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(vcells, 6600));
     fake_stm_adc_set(CHAN_VB1, adc_mv_to_code(vcells, 6600));
