@@ -1,0 +1,74 @@
+{"version": 0.1,
+"messages": [
+		{"label": "nak",
+				"index": 0,
+				"payload": [[1, "reply-to", "hex"],
+						    [4, "freeform", "bytes"]]
+		},
+		{"label": "ping"},
+		{"label": "pong"},
+		{"label": "create_tag",
+				"payload": [[4, "user", "bytes"]]
+		},
+		{"label": "tagged",
+				"payload": [[2, "logline", "uint"]]
+		},
+		{"label": "time_get"},
+		{"label": "time_set",
+				"payload": [[4, "sec", "uint"],
+						    [2, "ms", "uint"]],
+				"print": "time: {sec}.{ms}"
+		},
+		{"label": "dequeue_log"},
+		{"label": "logline",
+				"payload": [[2, "seqnum", "uint"],
+						    [1, "logtype", "uint"],
+							[4, "log_msg", "bytes"]]
+		},
+		{"label": "wipe_log"},
+		{"label": "flash_peek",
+				"payload": [[4, "address", "hex"],
+						    [1, "count", "uint"]]
+		},
+		{"label": "flash_read",
+				"payload": [[4, "address", "hex"],
+						    [1, "count", "uint"]]
+		},
+		{"label": "flash_data",
+				"payload": [[4, "address", "hex"],
+						    [1, "count", "uint"],
+							[8, "data", "bytes"]]
+		},
+		{"label": "adc_read",
+				"payload": [[1, "channel", "uint"],
+						    [2, "value", "uint"]]
+		},
+		{"label": "temp_read",
+				"payload": [[1, "address", "uint"],
+						    [1, "value", "int"],
+							[1, "frac", "uint"]]
+		},
+		{"label": "cenden_set",
+				"payload": [[1, "bitmask_dir", "flags"],
+						    [1, "bitmask_en", "flags"]]
+		},
+		{"label": "adc_scan"},
+		{"label": "current_set",
+				"payload": [[1, "channel", "uint"],
+						    [2, "ma", "uint"]]
+		},
+		{"label": "log_period_set",
+				"payload": [[2, "period", "uint"]]
+		},
+		{"label": "log_en_dis",
+				"payload": [[1, "enable", "flags"]]
+		},
+		{"label": "debug",
+				"payload": [[8, "value", "bytes"]]
+		},
+		{"label": "reserved",
+				"index": 165
+		}
+]
+}
+

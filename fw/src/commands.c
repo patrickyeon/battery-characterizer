@@ -14,7 +14,7 @@ static uint8_t crc(uint8_t *buff, int len) {
     return 0;
 }
 
-#define RLEN 10
+#define RLEN 15
 #define CLEN 11
 
 #define UNPACK4(buffer, start) ((buffer[start] << 24)       \
@@ -75,16 +75,16 @@ void commands_process(void) {
         resp[1] = CMD_PONG;
         break;
 
-    case CMD_TAG:
+    case CMD_CREATE_TAG:
         u32 = UNPACK4(cmdbuff, 2);
         i32 = logger_log_user(&now, u32);
         if (i32 >= 0) {
-            resp[1] = CMD_TAG;
+            resp[1] = CMD_TAGGED;
             resp[2] = (i32 >> 8) & 0xff;
             resp[3] = i32 & 0xff;
         } else {
             resp[1] = CMD_NAK;
-            resp[2] = CMD_TAG;
+            resp[2] = CMD_CREATE_TAG;
         }
         break;
 
@@ -108,9 +108,10 @@ void commands_process(void) {
         err = logger_dequeue(&log_msg);
         if (err < 0) {
             resp[1] = CMD_NAK;
-            resp[2] = err & 0xff;
+            resp[2] = CMD_DEQUEUE_LOG;
+            resp[3] = err & 0xff;
         } else {
-            resp[1] = CMD_ACK;
+            resp[1] = CMD_LOGLINE;
             resp[2] = log_msg.seqnum >> 8;
             resp[3] = log_msg.seqnum & 0xff;
             resp[4] = log_msg.type;
@@ -125,18 +126,22 @@ void commands_process(void) {
         for (int i = 0; i < 3; i++) {
             flash_erase(i);
         }
-        resp[1] = CMD_ACK;
+        resp[1] = CMD_WIPE_LOG;
         break;
 
+    // TODO figure out what you really want out of flash stuff here
     case CMD_FLASH_PEEK:
         u32 = UNPACK4(cmdbuff, 2);
         if (cmdbuff[6] > 7 || u32 < 0x0800000 || u32 >= 0x08008000) {
             resp[1] = CMD_NAK;
             resp[2] = CMD_FLASH_PEEK;
         } else {
-            resp[1] = CMD_FLASH_PEEK;
+            resp[1] = CMD_FLASH_DATA;
+            for (int i = 2; i < 7; i++) {
+                resp[i] = cmdbuff[i];
+            }
             for (int i = 0; i < cmdbuff[6]; i++) {
-                resp[i + 2] = flash_peek(u32 + i);
+                resp[i + 7] = flash_peek(u32 + i);
             }
         }
         break;
@@ -147,8 +152,11 @@ void commands_process(void) {
             resp[1] = CMD_NAK;
             resp[2] = CMD_FLASH_READ;
         } else {
-            resp[1] = CMD_FLASH_READ;
-            flash_read(u32, resp + 2, cmdbuff[6]);
+            resp[1] = CMD_FLASH_DATA;
+            for (int i = 2; i < 7; i++) {
+                resp[i] = cmdbuff[i];
+            }
+            flash_read(u32, resp + 7, cmdbuff[6]);
         }
         break;
 
@@ -160,15 +168,17 @@ void commands_process(void) {
     case CMD_ADC_READ:
         u16 = adc_read(cmdbuff[2]);
         resp[1] = CMD_ADC_READ;
-        resp[2] = (uint8_t)(u16 >> 8);
-        resp[3] = u16 & 0xff;
+        resp[2] = cmdbuff[2];
+        resp[3] = (uint8_t)(u16 >> 8);
+        resp[4] = u16 & 0xff;
         break;
 
     case CMD_TEMP_READ:
         i16 = at30ts74_read(cmdbuff[2]);
         resp[1] = CMD_TEMP_READ;
-        resp[2] = (uint8_t)((i16 >> 8) & 0xff);
-        resp[3] = (uint8_t)(i16 & 0xff);
+        resp[2] = cmdbuff[2];
+        resp[3] = (uint8_t)((i16 >> 8) & 0xff);
+        resp[4] = (uint8_t)(i16 & 0xff);
         break;
 
     case CMD_CENDEN_SET:
@@ -195,6 +205,8 @@ void commands_process(void) {
             director_disable(DENB);
         }
         resp[1] = CMD_CENDEN_SET;
+        resp[2] = cmdbuff[2];
+        resp[3] = cmdbuff[3];
         break;
 
     case CMD_CURRENT_SET:
@@ -217,34 +229,38 @@ void commands_process(void) {
         }
         if (u32) {
             pwm_out(u32, u16);
-            resp[1] = CMD_CURRENT_SET;
+            for (int i = 1; i < 5; i++) {
+                resp[i] = cmdbuff[i];
+            }
         } else {
             resp[1] = CMD_NAK;
             resp[2] = CMD_CURRENT_SET;
         }
         break;
 
-    case CMD_SET_LOG_PERIOD:
+    case CMD_LOG_PERIOD_SET:
         u16 = UNPACK2(cmdbuff, 2);
         if (u16 == 0) {
             resp[1] = CMD_NAK;
+            resp[2] = CMD_LOG_PERIOD_SET;
         } else {
             director_log_rate(u16);
-            resp[1] = CMD_SET_LOG_PERIOD;
+            resp[1] = CMD_LOG_PERIOD_SET;
             resp[2] = (u16 >> 8) & 0xff;
             resp[3] = u16 & 0xff;
         }
         break;
 
     case CMD_LOG_EN_DIS:
+        resp[1] = CMD_LOG_EN_DIS;
+        resp[2] = cmdbuff[2];
         if (cmdbuff[2] == 1) {
             director_log_start();
-            resp[1] = CMD_ACK;
-        } else if (cmdbuff[2] == 2) {
+        } else if (cmdbuff[2] == 0) {
             director_log_stop();
-            resp[1] = CMD_ACK;
         } else {
             resp[1] = CMD_NAK;
+            resp[2] = CMD_LOG_EN_DIS;
         }
         break;
 
