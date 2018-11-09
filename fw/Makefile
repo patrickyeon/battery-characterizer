@@ -32,6 +32,7 @@ ARM_LDFLAGS += $(ARM_ARCH_FLAGS) -ggdb
 SRCDIR = src/
 TESTDIR = test/
 DRIVERDIR = driver/
+GENDIR = generated/
 FAKEDIR = fake/
 BUILDDIR = build/
 UNITYDIR = Unity/
@@ -43,7 +44,7 @@ NATIVEFAKEDIR = $(NATIVEDIR)fake/
 RESULTDIR = $(BUILDDIR)results/
 
 # I don't like it, but until something better works out
-_dummy := $(shell $(MKDIR) $(TARGETDIR) $(TARGETDIR)main/ $(NATIVEDIR) $(NATIVETESTDIR) $(TARGETDRIVERDIR) $(NATIVEFAKEDIR) $(RESULTDIR))
+_dummy := $(shell $(MKDIR) $(TARGETDIR) $(TARGETDIR)main/ $(NATIVEDIR) $(NATIVETESTDIR) $(TARGETDRIVERDIR) $(NATIVEFAKEDIR) $(RESULTDIR) $(GENDIR))
 
 SRCFILES = $(wildcard $(SRCDIR)*.c)
 TESTFILES = $(wildcard $(TESTDIR)*.c)
@@ -56,6 +57,8 @@ targetsrc:  $(patsubst $(SRCDIR)%.c,$(TARGETDIR)%.o,$(SRCFILES))
 nativesrc:  $(patsubst $(SRCDIR)%.c,$(NATIVEDIR)%.o,$(SRCFILES))
 fakesrc:    $(patsubst $(FAKEDIR)%.c,$(NATIVEFAKEDIR)%.o,$(FAKEFILES))
 driversrc:  $(patsubst $(DRIVERDIR)%.c,$(TARGETDRIVERDIR)%.o,$(DRIVERFILES))
+
+genfiles: $(GENDIR)msgs.h
 
 main: $(TARGETDIR)main.elf
 
@@ -79,20 +82,24 @@ $(RESULTDIR)%.txt: $(NATIVETESTDIR)%.o
 $(NATIVETESTDIR)%.o:: $(TESTDIR)test_%.c $(SRCDIR)%.c nativesrc fakesrc
 	$(CC) $(NATIVE_CFLAGS) -I$(UNITYDIR)src $(TESTDIR)test_$*.c $(NATIVEDIR)*.o $(NATIVEFAKEDIR)*.o $(UNITYDIR)src/unity.c -o $@
 
-$(TARGETDIR)%.o:: $(SRCDIR)%.c
+$(TARGETDIR)%.o:: $(SRCDIR)%.c genfiles
 	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $< -o $@
 
-$(NATIVEDIR)%.o:: $(SRCDIR)%.c
+$(NATIVEDIR)%.o:: $(SRCDIR)%.c genfiles
 	$(CC) $(NATIVE_CFLAGS) -c $< -o $@
 
-$(TARGETDRIVERDIR)%.o:: $(DRIVERDIR)%.c
+$(TARGETDRIVERDIR)%.o:: $(DRIVERDIR)%.c genfiles
 	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $< -o $@
 
-$(NATIVEFAKEDIR)%.o:: $(FAKEDIR)%.c
+$(NATIVEFAKEDIR)%.o:: $(FAKEDIR)%.c genfiles
 	$(CC) $(NATIVE_CFLAGS) -c $< -o $@
+
+$(GENDIR)msgs.h: msg_def.json
+	python codegen.py -o $@ $<
 
 clean:
 	find $(BUILDDIR) -type f -delete
+	find $(GENDIR) -type f -delete
 
 flash: main
 	$(ARM_PREFIX)gdb $(TARGETDIR)main.elf\
