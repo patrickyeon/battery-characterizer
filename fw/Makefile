@@ -8,6 +8,7 @@ CC = gcc
 LD = gcc
 RM = rm
 OBJCOPY = objcopy
+OBJDUMP = objdump
 MKDIR = mkdir -p
 
 HWID ?= 0x0
@@ -68,6 +69,8 @@ $(TARGETDIR)%.elf: %.c targetsrc driversrc
 			$(TARGETDRIVERDIR)*.o $(ARM_LDLIBS) -o $(TARGETDIR)$*.elf
 	$(ARM_PREFIX)$(OBJCOPY) -Obinary $(TARGETDIR)$*.elf $(TARGETDIR)$*.bin
 	$(ARM_PREFIX)$(OBJCOPY) -Oihex $(TARGETDIR)$*.elf $(TARGETDIR)$*.hex
+	$(ARM_PREFIX)$(OBJDUMP) -S $(TARGETDIR)$*.elf >$(TARGETDIR)$*.lst
+	$(ARM_PREFIX)$(OBJDUMP) -t $(TARGETDIR)$*.elf >$(TARGETDIR)$*.map
 	$(ARM_PREFIX)size -Ax $(TARGETDIR)$*.elf
 
 test: $(RESULTS)
