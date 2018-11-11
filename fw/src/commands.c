@@ -1,7 +1,6 @@
 #include "../driver/at30ts74.h"
 #include "./adc.h"
 #include "./commands.h"
-#include "./config.h"
 #include "./director.h"
 #include "./gpio.h"
 #include "./logger.h"
@@ -271,8 +270,8 @@ void commands_process(void) {
 
     case CMD_HWID_GET:
         resp[1] = CMD_HWID_SET;
-        resp[2] = (config_hwid() >> 8) & 0xff;
-        resp[2] = config_hwid() & 0xff;
+        resp[2] = (get_hwid() >> 8) & 0xff;
+        resp[3] = get_hwid() & 0xff;
         break;
 
     default:
