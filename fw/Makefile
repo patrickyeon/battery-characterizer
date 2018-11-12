@@ -105,9 +105,18 @@ clean:
 	find $(GENDIR) -type f -delete
 
 flash: main
-	$(ARM_PREFIX)gdb $(TARGETDIR)main.elf\
+	$(ARM_PREFIX)gdb --batch\
 			-ex "target extended-remote /dev/ttyBmpGdb"\
 			-ex "monitor swdp_scan"\
 			-ex "attach 1"\
 			-ex "load"\
-			-ex "run"
+			$(TARGETDIR)main.elf
+
+run: main
+	$(ARM_PREFIX)gdb --batch\
+			-ex "target extended-remote /dev/ttyBmpGdb"\
+			-ex "monitor swdp_scan"\
+			-ex "attach 1"\
+			-ex "load"\
+			-ex "run"\
+			$(TARGETDIR)main.elf

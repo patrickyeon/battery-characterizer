@@ -17,7 +17,7 @@
 		{"label": "time_set",
 				"payload": [[4, "sec", "uint"],
 						    [2, "ms", "uint"]],
-				"print": "time: {sec}.{ms}"
+				"print": "time: {sec}.{ms:03}"
 		},
 		{"label": "dequeue_log"},
 		{"label": "logline",
@@ -68,7 +68,7 @@
 		},
 		{"label": "hwid_get"},
 		{"label": "hwid_set",
-				"payload": [[16, "hwid", "uint"]]
+				"payload": [[2, "hwid", "uint"]]
 		},
 		{"label": "startbyte",
 				"index": 165
