@@ -45,3 +45,10 @@ int16_t at30ts74_read(uint8_t addr) {
     // reading a sensor that hasn't had a temp set for it yet
     assert(0);
 }
+
+uint8_t at30ts74_read_err(int16_t val) {
+    if (val & 0xf) {
+        return val >> 8;
+    }
+    return 0;
+}

@@ -21,7 +21,8 @@ static struct config_t {
     int16_t temp_min, temp_max;
 } base_config;
 
-static const uint16_t safe_vbat_min=2400, safe_vbat_max=4300;
+static uint16_t safe_vbat_min;
+static uint16_t safe_vbat_max;
 
 static int16_t temp_cache[4]; // temperatures
 static bool _logging = false;
@@ -166,6 +167,8 @@ void director_direction(chg_direction_e a, chg_direction_e b) {
 }
 
 void director_init(void) {
+    safe_vbat_min = adc_mv_to_code(2400, 6600);
+    safe_vbat_max = adc_mv_to_code(4300, 6600);
     // fresh config with some sane defaults
     base_config = (struct config_t) {
         HWID,
@@ -174,7 +177,7 @@ void director_init(void) {
         // chg cutoff at 2% current rating
         66, 66,
         // dischg cutoff at 2.5V
-        2500, 2500,
+        adc_mv_to_code(2500, 6600), adc_mv_to_code(2500, 6600),
         // sensible temperature operating range
         10, 35
     };

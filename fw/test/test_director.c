@@ -98,7 +98,7 @@ void test_direction_switch(void) {
 void test_over_under_voltage(void) {
     setup(20, 3700);
     director_init();
-    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(4300, 6600));
+    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(4350, 6600));
     fake_stm_adc_set(CHAN_VB3, adc_mv_to_code(2200, 6600));
     director_enable(CENA | CENB | DENA | DENB);
 
@@ -113,16 +113,16 @@ void test_stop_over_voltage(void) {
     TEST_ASSERT_EQUAL(0, err);
     _assert_cenden(true, true, true, true);
 
-    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(4300, 6600));
+    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(4350, 6600));
     adc_scan();
     err = director_checkup();
-    TEST_ASSERT_EQUAL(ERR_OVERVOLT_CELL0, err);
+    TEST_ASSERT_EQUAL(ERR_OVERVOLT(0), err);
     _assert_cenden(false, true, true, true);
 
     fake_stm_adc_set(CHAN_VB3, adc_mv_to_code(4400, 6600));
     adc_scan();
     err = director_checkup();
-    TEST_ASSERT_EQUAL(ERR_OVERVOLT_CELL3, err);
+    TEST_ASSERT_EQUAL(ERR_OVERVOLT(3), err);
     _assert_cenden(false, true, true, false);
 }
 
@@ -134,12 +134,12 @@ void test_stop_overvoltage_discharge(void) {
     director_enable(CENA | CENB | DENA | DENB);
     _assert_cenden(true, true, true, true);
 
-    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(4300, 6600));
-    fake_stm_adc_set(CHAN_VB2, adc_mv_to_code(4300, 6600));
+    fake_stm_adc_set(CHAN_VB0, adc_mv_to_code(4320, 6600));
+    fake_stm_adc_set(CHAN_VB2, adc_mv_to_code(4320, 6600));
     adc_scan();
 
     uint32_t err = director_checkup();
-    TEST_ASSERT_EQUAL(ERR_OVERVOLT_CELL0 | ERR_OVERVOLT_CELL2, err);
+    TEST_ASSERT_EQUAL(ERR_OVERVOLT(0) | ERR_OVERVOLT(2), err);
     _assert_cenden(false, true, true, false);
 }
 
