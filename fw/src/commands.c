@@ -114,11 +114,15 @@ void commands_process(void) {
             resp[1] = CMD_LOGLINE;
             resp[2] = log_msg.seqnum >> 8;
             resp[3] = log_msg.seqnum & 0xff;
-            resp[4] = log_msg.type;
-            resp[5] = log_msg.payload[0];
-            resp[6] = log_msg.payload[1];
-            resp[7] = log_msg.payload[2];
-            resp[8] = log_msg.payload[3];
+            resp[4] = (log_msg.timestamp >> 24) & 0xff;
+            resp[5] = (log_msg.timestamp >> 16) & 0xff;
+            resp[6] = (log_msg.timestamp >> 8) & 0xff;
+            resp[7] = log_msg.timestamp & 0xff;
+            resp[8] = log_msg.type;
+            resp[9] = log_msg.payload[0];
+            resp[10] = log_msg.payload[1];
+            resp[11] = log_msg.payload[2];
+            resp[12] = log_msg.payload[3];
         }
         break;
 

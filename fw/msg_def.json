@@ -22,6 +22,7 @@
 		{"label": "dequeue_log"},
 		{"label": "logline",
 				"payload": [[2, "seqnum", "uint"],
+						    [4, "timestamp", "uint"],
 						    [1, "logtype", "uint"],
 							[4, "log_msg", "bytes"]]
 		},

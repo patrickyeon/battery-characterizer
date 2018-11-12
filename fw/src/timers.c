@@ -77,14 +77,21 @@ abs_time_t systime(void) {
 }
 
 uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to) {
-    assert(to->sec >= from->sec);
-    assert(to->ms >= from->ms || from->sec < to->sec);
+    // XXX I'm not sure if I like this, but return 0 if from is after to
+    if (to->sec < from->sec || (to->sec == from->sec && to->ms <= from->ms)) {
+        return 0;
+    }
     uint32_t retval = to->sec - from->sec;
     if (retval >= 0xffffffff / 1001) {
         return 0xffffffff;
     } else {
         return retval * 1000 + to->ms - from->ms;
     }
+}
+
+abs_time_t time_add(abs_time_t *when, uint32_t delta_ms) {
+    delta_ms += when->ms;
+    return (abs_time_t){when->sec + (delta_ms / 1000), delta_ms % 1000};
 }
 
 static inline uint32_t timer_for_ticker(ticker_e ticker) {

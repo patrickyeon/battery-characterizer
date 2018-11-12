@@ -27,7 +27,7 @@ static uint16_t safe_vbat_max;
 static int16_t temp_cache[4]; // temperatures
 static bool _logging = false;
 static uint32_t _log_period = 1000;
-static abs_time_t _last_log = (abs_time_t){0, 0};
+static abs_time_t _next_log = (abs_time_t){0, 0};
 
 static void _read_temps(void) {
     temp_cache[0] = temperature_read(TSENS0);
@@ -182,7 +182,7 @@ void director_init(void) {
         10, 35
     };
 
-    _last_log = (abs_time_t){0, 0};
+    _next_log = (abs_time_t){0, 0};
     _log_period = 1000;
     _logging = false;
 
@@ -272,9 +272,7 @@ void director_tick(void) {
     if (_logging && err) {
         logger_log_error(&now, err);
     }
-    if (_logging && ms_elapsed(&_last_log, &now) > _log_period) {
-        // TODO also log state, temperature
-
+    if (_logging && ms_elapsed(&_next_log, &now) > 0) {
         log_type_e b0, b1;
         uint8_t c0, c1;
 
@@ -316,7 +314,11 @@ void director_tick(void) {
         logger_log_temp_stat(&now, LOG_TEMPSTAT_BAT2, temp_cache[2], 0);
         logger_log_temp_stat(&now, LOG_TEMPSTAT_BAT3, temp_cache[3], 0);
 
-        _last_log = now;
+        while (ms_elapsed(&_next_log, &now) > 0) {
+            //  ideally should only run once, but this will prevent
+            // double-logging
+            _next_log = time_add(&_next_log, _log_period);
+        }
     }
     _read_temps();
     adc_scan();
@@ -330,6 +332,7 @@ void director_log_rate(uint16_t period) {
 
 void director_log_start(void) {
     _logging = true;
+    _next_log = systime();
 }
 
 void director_log_stop(void) {

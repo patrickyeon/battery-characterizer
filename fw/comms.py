@@ -299,6 +299,18 @@ class TestFoo(bc):
                 adcs.append(-1)
         return odict(zip('ic_a ic_b id_a id_b vb_1 vb_0 vb_3 vb_2'.split(),
                          adcs))
+    def test_logger(self, period=100, sleep=5):
+        print self.get_time()
+        self.rx_for('log_period_set', 'log_period_set', period=period)
+        self.rx_for('log_en_dis', 'log_en_dis', enable=1)
+        time.sleep(sleep)
+        try:
+            while True:
+                print self.rx_for('logline', 'dequeue_log')
+        except ResponseException:
+            pass
+        self.rx_for('log_en_dis', 'log_en_dis', enable=0)
+        print self.get_time()
 
 class Characterizer(bc):
     def __init__(self, hwid, cell_serials, tty=None):

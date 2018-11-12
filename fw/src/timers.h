@@ -21,6 +21,7 @@ void timers_init(void);
 void timers_set_systime(uint32_t sec, uint16_t ms);
 abs_time_t systime(void);
 uint32_t ms_elapsed(abs_time_t *from, abs_time_t *to);
+abs_time_t time_add(abs_time_t *when, uint32_t delta);
 
 typedef enum ticker_e {
     TIMER_LOOP, // used for main loop timing, do not use
