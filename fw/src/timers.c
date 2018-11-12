@@ -41,8 +41,6 @@ void timers_init(void) {
     timer_set_counter(TIM16, 0xff);
     timer_enable_counter(TIM16);
 
-
-
     systick_interrupt_enable();
     systick_counter_enable();
 }
