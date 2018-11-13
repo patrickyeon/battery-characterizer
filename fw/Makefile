@@ -59,7 +59,7 @@ nativesrc:  $(patsubst $(SRCDIR)%.c,$(NATIVEDIR)%.o,$(SRCFILES))
 fakesrc:    $(patsubst $(FAKEDIR)%.c,$(NATIVEFAKEDIR)%.o,$(FAKEFILES))
 driversrc:  $(patsubst $(DRIVERDIR)%.c,$(TARGETDRIVERDIR)%.o,$(DRIVERFILES))
 
-genfiles: $(GENDIR)msgs.h
+GENFILES = $(GENDIR)msgs.h
 
 main: $(TARGETDIR)main.elf
 
@@ -85,16 +85,16 @@ $(RESULTDIR)%.txt: $(NATIVETESTDIR)%.o
 $(NATIVETESTDIR)%.o:: $(TESTDIR)test_%.c $(SRCDIR)%.c nativesrc fakesrc
 	$(CC) $(NATIVE_CFLAGS) -I$(UNITYDIR)src $(TESTDIR)test_$*.c $(NATIVEDIR)*.o $(NATIVEFAKEDIR)*.o $(UNITYDIR)src/unity.c -o $@
 
-$(TARGETDIR)%.o:: $(SRCDIR)%.c genfiles
+$(TARGETDIR)%.o:: $(SRCDIR)%.c $(GENFILES)
 	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $< -o $@
 
-$(NATIVEDIR)%.o:: $(SRCDIR)%.c genfiles
+$(NATIVEDIR)%.o:: $(SRCDIR)%.c $(GENFILES)
 	$(CC) $(NATIVE_CFLAGS) -c $< -o $@
 
-$(TARGETDRIVERDIR)%.o:: $(DRIVERDIR)%.c genfiles
+$(TARGETDRIVERDIR)%.o:: $(DRIVERDIR)%.c $(GENFILES)
 	$(ARM_PREFIX)$(CC) $(ARM_CFLAGS) -c $< -o $@
 
-$(NATIVEFAKEDIR)%.o:: $(FAKEDIR)%.c genfiles
+$(NATIVEFAKEDIR)%.o:: $(FAKEDIR)%.c $(GENFILES)
 	$(CC) $(NATIVE_CFLAGS) -c $< -o $@
 
 $(GENDIR)msgs.h: msg_def.json
