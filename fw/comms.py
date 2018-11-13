@@ -151,7 +151,8 @@ class bc:
         self.echo = echo
 
     def __del__(self):
-        self.ser.close()
+        if hasattr(self, 'ser'):
+            self.ser.close()
 
     def _send(self, str_or_bstream, **values):
         if type(str_or_bstream) == str:
@@ -201,6 +202,9 @@ class bc:
         self._send(str_or_bstream, **values)
         return self.expect(expected)
 
+    def echo_for(self, str_or_bstream, **values):
+        return self.rx_for(str_or_bstream, str_or_bstream, **values)
+
     def ping(self):
         self.rx_for('pong', 'ping')
         return True
@@ -210,7 +214,7 @@ class bc:
         return ret['sec'] + ret['ms'] * 0.001
 
     def set_time(self, sec, ms=0):
-        ret = self.rx_for('time_set', 'time_set', sec=sec, ms=ms)
+        ret = self.echo_for('time_set', sec=sec, ms=ms)
         return ret['sec'] + ret['ms'] * 0.001
 
     def tag(self, tag):
@@ -225,7 +229,7 @@ class bc:
         return resp.fields
 
     def wipelog(self):
-        self.rx_for('wipe_log', 'wipe_log')
+        self.echo_for('wipe_log')
         return True
 
     def read_flash(self, addr, nbytes):
@@ -239,8 +243,8 @@ class bc:
         return resp['data']
 
     def read_adc(self, chan):
-        self.rx_for('adc_scan', 'adc_scan')
-        return self.rx_for('adc_read', 'adc_read', channel=chan).fields
+        self.echo_for('adc_scan')
+        return self.echo_for('adc_read', channel=chan).fields
 
     def flush_read(self):
         nflushed = 0
@@ -256,7 +260,7 @@ class bc:
         temps = []
         for addr in (0x48, 0x49, 0x4c, 0x4d):
             try:
-                resp = self.rx_for('temp_read', 'temp_read', address=addr)
+                resp = self.echo_for('temp_read', address=addr)
                 temps.append(resp['value'] + resp['frac'] * 1./256)
             except ResponseException:
                 temps.append(-99)
@@ -275,25 +279,37 @@ class bc:
         for i, t in enumerate(truthstr[2:]):
             if t == 't':
                 enmask |= 2 ** i
-        self.rx_for('cenden_set',
-                    'cenden_set', bitmask_dir=dirmask, bitmask_en=enmask)
+        self.echo_for('cenden_set', bitmask_dir=dirmask, bitmask_en=enmask)
         return True
 
     def set_i(self, chan, val):
         #channels: 0 = IDA, 1 = IDB, 2 = ICA, 3 = ICB
-        self.rx_for('current_set', 'current_set', channel=chan, ma=val)
+        self.echo_for('current_set', channel=chan, ma=val)
         return True
 
     def get_hwid(self):
         return self.rx_for('hwid_set', 'hwid_get')['hwid']
 
+    def time_sync(self, precision=0.01, nattempts=20):
+        minprec = 10
+        for i in range(nattempts):
+            tstart = time.time()
+            devtime = self.get_time()
+            tstop = time.time()
+            if tstop - tstart <= precision:
+                return (tstart + tstop) / 2 - devtime
+            elif tstop - tstart < minprec:
+                minprec = tstop - tstart
+        raise Exception('could not sync time better than {}s'.format(minprec))
+
+
 class TestFoo(bc):
     def read_all_adcs(self):
         adcs = []
-        self.rx_for('adc_scan', 'adc_scan')
+        self.echo_for('adc_scan')
         for chan in range(8):
             try:
-                resp = self.rx_for('adc_read', 'adc_read', channel=chan)
+                resp = self.echo_for('adc_read', channel=chan)
                 adcs.append(resp['value'])
             except ResponseException:
                 adcs.append(-1)
@@ -301,15 +317,15 @@ class TestFoo(bc):
                          adcs))
     def test_logger(self, period=100, sleep=5):
         print self.get_time()
-        self.rx_for('log_period_set', 'log_period_set', period=period)
-        self.rx_for('log_en_dis', 'log_en_dis', enable=1)
+        self.echo_for('log_period_set', period=period)
+        self.echo_for('log_en_dis', enable=1)
         time.sleep(sleep)
         try:
             while True:
                 print self.rx_for('logline', 'dequeue_log')
         except ResponseException:
             pass
-        self.rx_for('log_en_dis', 'log_en_dis', enable=0)
+        self.echo_for('log_en_dis', enable=0)
         print self.get_time()
 
 class Characterizer(bc):
@@ -334,3 +350,59 @@ class Characterizer(bc):
             except serial.SerialException:
                 pass
         raise Exception('could not find hwid {}'.format(hwid))
+
+    def start_log(self, period=60):
+        self.echo_for('log_period_set', period=period * 100)
+        self.echo_for('log_en_dis', enable=1)
+    def stop_log(self):
+        self.echo_for('log_en_dis', enable=0)
+
+    def dump_logs(self):
+        loglines = []
+        offset = self.time_sync()
+        try:
+            while True:
+                pkt = self.rx_for('logline', 'dequeue_log')
+                loglines.append(self.unpack_payload(pkt, offset))
+        except ResponseException:
+            pass
+        return loglines
+
+    @classmethod
+    def unpack_payload(cls, pkt, offset=0):
+        # TODO this could be generated?
+        payload = {}
+        if 1 <= pkt['logtype'] <= 4:
+            payload['chan'] = 0
+        elif 5 <= pkt['logtype'] <= 8:
+            payload['chan'] = 1
+        elif 9 <= pkt['logtype'] <= 12:
+            payload['chan'] = 2
+        elif 13 <= pkt['logtype'] <= 16:
+            payload['chan'] = 3
+        elif pkt['logtype'] == 17:
+            payload['user'] = pkt['log_msg']
+        elif pkt['logtype'] == 19:
+            payload['flags'] = unpack(pkt['log_msg'])
+        else:
+            raise Exception('unhandled log type: {}'.format(pkt['logtype']))
+
+        if 'chan' in payload:
+            # it's logged channel data that hasn't been decoded
+            if pkt['logtype'] % 4 == 1:
+                payload['ma'] = unpack(pkt['log_msg'][:2])
+                payload['mv'] = unpack(pkt['log_msg'][2:])
+                payload['direction'] = 'charging'
+            elif pkt['logtype'] % 4 == 2:
+                payload['ma'] = unpack(pkt['log_msg'][:2])
+                payload['mv'] = unpack(pkt['log_msg'][2:])
+                payload['direction'] = 'discharging'
+            elif pkt['logtype'] % 4 == 3:
+                payload['flags'] = pkt['log_msg'][3]
+            else:
+                payload['temperature'] = (pkt['log_msg'][0]
+                                          + pkt['log_msg'][1] * (1./256))
+                payload['flags'] = pkt['log_msg'][3]
+        return {'seqnum': pkt['seqnum'],
+                'timestamp': pkt['timestamp'] + offset,
+                'payload': payload}
