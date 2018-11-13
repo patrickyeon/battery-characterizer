@@ -31,4 +31,7 @@ typedef enum ticker_e {
 void tick(ticker_e ticker);
 uint32_t tock(ticker_e ticker);
 
+void watchdog_start(void);
+void watchdog_pet(void);
+
 #endif // TIMERS_H

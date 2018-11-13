@@ -2,6 +2,7 @@
 
 #include <assert.h>
 
+#include <libopencm3/stm32/iwdg.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
@@ -121,4 +122,17 @@ uint32_t tock(ticker_e ticker) {
         return 0;
     }
     return timer_get_counter(tim) * 2;
+}
+
+void watchdog_start(void) {
+#ifndef NO_WATCHDOG
+    iwdg_set_period_ms(1000);
+    iwdg_start();
+#endif // NO_WATCHDOG
+}
+
+void watchdog_pet(void) {
+#ifndef NO_WATCHDOG
+    iwdg_reset();
+#endif // NO_WATCHDOG
 }

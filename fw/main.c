@@ -51,6 +51,7 @@ static void onehz(void) {
 
 int main(void) {
     init();
+    watchdog_start();
     abs_time_t last_tenhz = (abs_time_t){0, 0};
     abs_time_t last_onehz = (abs_time_t){0, 0};
 
@@ -72,6 +73,7 @@ int main(void) {
         }
         usb_poll();
         commands_process();
+        watchdog_pet();
     }
     return 0;
 }

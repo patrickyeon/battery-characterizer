@@ -1,6 +1,11 @@
 .PHONY: clean flash test main
 default: main
 
+# Some arguments you may want to pass:
+# HWID=0xnnnn for a uint16_t hwid
+# USERFLAGS -DNO_WATCHDOG to disable the independent watchdog timer (especially if interrupting in gdb)
+#           -DDIRECTOR_UNSAFE to disable voltage and temperature checking when enabling channels
+
 ARM_PREFIX = arm-none-eabi-
 OPENCM3_DIR = libopencm3
 
