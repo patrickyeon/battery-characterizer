@@ -14,5 +14,8 @@ enum i2c_err_e {
 void i2c_init(void);
 uint8_t i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
                      uint8_t *r, size_t rn, uint32_t timeout);
+uint8_t timed_i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
+                           uint8_t *r, size_t rn, uint32_t timeout,
+                           uint32_t *timings);
 
 #endif // I2C_H

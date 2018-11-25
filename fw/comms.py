@@ -132,6 +132,7 @@ def bytes_for(label, **values):
                 bs[n - i - 1] = (val >> (i * 8)) & 0xff
             pkt.extend(bs)
         elif typ == 'bytes':
+            #FIXME empty value breaks this, eg try a debug command
             pkt.extend(val)
         else:
             raise MessageException('don\'t know what to do with {}'.format(typ))
