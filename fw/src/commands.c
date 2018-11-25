@@ -8,6 +8,7 @@
 #include "./timers.h"
 #include "../driver/usb.h"
 #include "../driver/flash.h"
+#include "../driver/at30ts74.h"
 
 static uint8_t crc(uint8_t *buff, int len) {
     //FIXME real crc
@@ -64,6 +65,7 @@ void commands_process(void) {
     uint8_t resp[RLEN] = {CMD_STARTBYTE};
     int err;
     uint32_t u32;
+    uint32_t *p32;
     int32_t i32;
     uint16_t u16;
     int16_t i16;
@@ -269,7 +271,22 @@ void commands_process(void) {
         break;
 
     case CMD_DEBUG:
-        resp[1] = CMD_NAK;
+        resp[1] = CMD_DEBUG;
+        p32 = at_timings();
+        //for (int i = 0; i < 7; i++) {
+        //    if (*p32 > 0xff) {
+        //        resp[i + 2] = 0xff;
+        //    } else {
+        //        resp[i + 2] = (uint8_t)*p32;
+        //    }
+        //    p32++;
+        //}
+        p32 += cmdbuff[2];
+        //p32 += 5;
+        resp[2] = (*p32 >> 24) & 0xff;
+        resp[3] = (*p32 >> 16) & 0xff;
+        resp[4] = (*p32 >> 8) & 0xff;
+        resp[5] = (*p32 >> 0) & 0xff;
         break;
 
     case CMD_HWID_GET:
