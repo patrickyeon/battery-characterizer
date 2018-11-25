@@ -118,7 +118,7 @@ flash: main
 			$(TARGETDIR)main.elf
 
 run: main
-	$(ARM_PREFIX)gdb --batch\
+	$(ARM_PREFIX)gdb\
 			-ex "target extended-remote /dev/ttyBmpGdb"\
 			-ex "monitor swdp_scan"\
 			-ex "attach 1"\

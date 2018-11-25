@@ -278,6 +278,20 @@ void commands_process(void) {
         resp[3] = get_hwid() & 0xff;
         break;
 
+    case CMD_TENHZ_GET:
+        resp[1] = CMD_TENHZ_REPLY;
+        u32 = get_tenhz(false);
+        resp[2] = (u32 >> 24) & 0xff;
+        resp[3] = (u32 >> 16) & 0xff;
+        resp[4] = (u32 >> 8) & 0xff;
+        resp[5] = u32 & 0xff;
+        u32 = get_tenhz(true);
+        resp[6] = (u32 >> 24) & 0xff;
+        resp[7] = (u32 >> 16) & 0xff;
+        resp[8] = (u32 >> 8) & 0xff;
+        resp[9] = u32 & 0xff;
+        break;
+
     default:
         resp[1] = CMD_NAK;
         resp[2] = cmdbuff[1];

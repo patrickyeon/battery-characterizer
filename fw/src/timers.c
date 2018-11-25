@@ -42,6 +42,15 @@ void timers_init(void) {
     timer_set_counter(TIM16, 0xff);
     timer_enable_counter(TIM16);
 
+    // TIM17 for managing timeouts
+    rcc_periph_clock_enable(RCC_TIM17);
+    rcc_periph_reset_pulse(RST_TIM17);
+    timer_set_prescaler(TIM17, 96);
+    timer_disable_preload(TIM17);
+    timer_one_shot_mode(TIM17);
+    timer_set_counter(TIM17, 0xff);
+    timer_enable_counter(TIM17);
+
     systick_interrupt_enable();
     systick_counter_enable();
 }
@@ -101,6 +110,8 @@ static inline uint32_t timer_for_ticker(ticker_e ticker) {
         return TIM14;
     case TIMER_GEN:
         return TIM16;
+    case TIMER_TIMEOUT:
+        return TIM17;
     default:
         return 0;
     }

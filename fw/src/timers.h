@@ -25,6 +25,7 @@ abs_time_t time_add(abs_time_t *when, uint32_t delta);
 
 typedef enum ticker_e {
     TIMER_LOOP, // used for main loop timing, do not use
+    TIMER_TIMEOUT,
     TIMER_GEN // general purpose, use wherever but only one "wherever" at a time
 } ticker_e;
 

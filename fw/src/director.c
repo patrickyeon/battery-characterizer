@@ -24,6 +24,8 @@ static struct config_t {
 static uint16_t safe_vbat_min;
 static uint16_t safe_vbat_max;
 
+static uint32_t long_tenhz, recent_tenhz;
+
 static int16_t temp_cache[4]; // temperatures
 static bool _logging = false;
 static uint32_t _log_period = 1000;
@@ -167,6 +169,8 @@ void director_direction(chg_direction_e a, chg_direction_e b) {
 }
 
 void director_init(void) {
+    long_tenhz = 0;
+    recent_tenhz = 0;
     safe_vbat_min = adc_mv_to_code(2400, 6600);
     safe_vbat_max = adc_mv_to_code(4300, 6600);
     // fresh config with some sane defaults
@@ -266,7 +270,13 @@ uint32_t director_checkup(void) {
     return retval;
 }
 
-void director_tick(void) {
+void director_tick(uint32_t tenhz) {
+    if (tenhz > long_tenhz) {
+        long_tenhz = tenhz;
+        // FIXME if this was too long, log an error
+    }
+    recent_tenhz = tenhz;
+
     uint32_t err = director_checkup();
     abs_time_t now = systime();
     if (_logging && err) {
@@ -341,4 +351,11 @@ void director_log_stop(void) {
 
 uint16_t get_hwid(void) {
     return base_config.hwid;
+}
+
+uint32_t get_tenhz(bool longest) {
+    if (longest) {
+        return long_tenhz;
+    }
+    return recent_tenhz;
 }

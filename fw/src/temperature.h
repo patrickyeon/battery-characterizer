@@ -11,5 +11,6 @@ typedef enum {
 } tsens_e;
 
 int16_t temperature_read(tsens_e which);
+uint32_t temperature_init(void);
 
 #endif // TEMPERATURE_H

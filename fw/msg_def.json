@@ -71,6 +71,11 @@
 		{"label": "hwid_set",
 				"payload": [[2, "hwid", "uint"]]
 		},
+		{"label": "tenhz_get"},
+		{"label": "tenhz_reply",
+				"payload": [[4, "recent", "uint"],
+						    [4, "longest", "uint"]]
+		},
 		{"label": "startbyte",
 				"index": 165
 		}

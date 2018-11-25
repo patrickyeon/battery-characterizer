@@ -35,11 +35,9 @@ uint8_t i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
 
        while (wn--) {
            bool wait = true;
-           //  we know the main loop tick/tock is running, also we know it's not
-           // going to be reset while we do this.
-           uint32_t t = tock(TIMER_LOOP);
+           tick(TIMER_TIMEOUT);
            while (wait) {
-               if (tock(TIMER_LOOP) - t > timeout) {
+               if (tock(TIMER_TIMEOUT) > timeout) {
                    return I2C_ERR_TX_TIMEOUT;
                }
                if (i2c_transmit_int_status(i2c)) {
@@ -50,7 +48,7 @@ uint8_t i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
                }
            }
            while (!i2c_transmit_int_status(i2c)) {
-               if (tock(TIMER_LOOP) - t > timeout) {
+               if (tock(TIMER_TIMEOUT) > timeout) {
                    return I2C_ERR_TX_TIMEOUT2;
                }
            }
@@ -59,8 +57,6 @@ uint8_t i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
        // not entirely sure this is really necessary.
        // RM implies it will stall until it can write out the later bits
        if (rn) {
-           //  we know the main loop tick/tock is running, also we know it's not
-           // going to be reset while we do this.
            uint32_t t = tock(TIMER_LOOP);
            while (!i2c_transfer_complete(i2c)) {
                if (tock(TIMER_LOOP) - t > timeout) {
@@ -81,9 +77,9 @@ uint8_t i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
         i2c_enable_autoend(i2c);
 
         for (size_t i = 0; i < rn; i++) {
-            uint32_t t = tock(TIMER_LOOP);
+            tick(TIMER_TIMEOUT);
             while (i2c_received_data(i2c) == 0) {
-                if (tock(TIMER_LOOP) - t > timeout) {
+                if (tock(TIMER_TIMEOUT) > timeout) {
                     return I2C_ERR_RX_TIMEOUT;
                 }
             }
