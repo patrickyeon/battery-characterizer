@@ -1,0 +1,371 @@
+== Improving on `libopencm3` I2C Support
+
+`libopencm3` has a pretty straightforward I2C API, to get going with it all I needed to do was set the pins up, choose a speed, and enable the peripheral. With simple communications needs, reading and writing can both be done using only one function.
+
+[code]
+// init
+rcc_periph_clock_enable(RCC_I2C1);
+gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, (SCL | SDA));
+gpio_set_af(GPIOA, GPIO_AF4, (SCL | SDA));
+i2c_peripheral_disable(I2C1);
+i2c_set_speed(I2C1, i2c_speed_fm_400k, rcc_apb1_frequency / 1000000);
+i2c_peripheral_enable(I2C1);
+
+// configure a chip
+#define addr 0x48
+uint8_t config[] = {0x0x, 0x00, 0x00};
+i2c_transfer7(I2C1, addr, config, 3, NULL, 0);
+
+// read a register
+uint8_t retval[2];
+uint8_t reg_addr = 0;
+i2c_transfer7(I2C1, addr, &reg_addr, 1, retval, 2);
+[/code]
+
+This all worked fine at first, when I had a fully populated and working board. When I later set up a second board with a minimum of components to do microcontroller-centric development, the limitations started to show. The first time my code would try to communicate with any I2C device, the micro would lock up. At a first read through the implementation of `i2c_transfer`, it's obvious what's going wrong:
+
+[code]
+void i2c_transfer7(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn, uint8_t *r, size_t rn)
+{
+	/*  waiting for busy is unnecessary. read the RM */
+	if (wn) {
+		i2c_set_7bit_address(i2c, addr);
+		i2c_set_write_transfer_dir(i2c);
+		i2c_set_bytes_to_transfer(i2c, wn);
+		if (rn) {
+			i2c_disable_autoend(i2c);
+		} else {
+			i2c_enable_autoend(i2c);
+		}
+		i2c_send_start(i2c);
+
+		while (wn--) {
+			bool wait = true;
+			while (wait) {
+				if (i2c_transmit_int_status(i2c)) {
+					wait = false;
+				}
+				while (i2c_nack(i2c)); /* FIXME Some error */
+			}
+			i2c_send_data(i2c, *w++);
+		}
+		/* not entirely sure this is really necessary.
+		 * RM implies it will stall until it can write out the later bits
+		 */
+		if (rn) {
+			while (!i2c_transfer_complete(i2c));
+		}
+	}
+
+	if (rn) {
+		/* Setting transfer properties */
+		i2c_set_7bit_address(i2c, addr);
+		i2c_set_read_transfer_dir(i2c);
+		i2c_set_bytes_to_transfer(i2c, rn);
+		/* start transfer */
+		i2c_send_start(i2c);
+		/* important to do it afterwards to do a proper repeated start! */
+		i2c_enable_autoend(i2c);
+
+		for (size_t i = 0; i < rn; i++) {
+			while (i2c_received_data(i2c) == 0);
+			r[i] = i2c_get_data(i2c);
+		}
+	}
+}
+[/code]
+
+There are no timeouts in that code, so if `i2c_transmit_int_status()` never succeeds, it'll just keed on trying for ever (later, there's the same problem waiting on `i2c_received_data()`). There's also a glaring `FIXME` note: a NACK on the bus will cause a hang as well.
+
+One thing I could do is add a compile option for "working with a board that won't have I2C devices on it", but I'd still be exposed to a problem where the micro will hang if any device stops working for some reason. Instead, I've grabbed the code out of `libopencm3` and created my own version with timeouts:
+
+[code]
+uint8_t i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
+                           uint8_t *r, size_t rn, uint32_t timeout) {
+    // libopencm3 i2c_transfer7(), with error report and timeout
+    //  waiting for busy is unnecessary. read the RM
+    if (wn) {
+        i2c_set_7bit_address(i2c, addr);
+        i2c_set_write_transfer_dir(i2c);
+        i2c_set_bytes_to_transfer(i2c, wn);
+        if (rn) {
+                i2c_disable_autoend(i2c);
+        } else {
+                i2c_enable_autoend(i2c);
+        }
+        i2c_send_start(i2c);
+
+        while (wn--) {
+            bool wait = true;
+            tick(TIMER_TIMEOUT);
+            uint32_t t_elapsed;
+            while (wait) {
+                t_elapsed = tock(TIMER_TIMEOUT);
+                if (t_elapsed > timeout) {
+                    return I2C_ERR_TX_TIMEOUT;
+                }
+                if (i2c_transmit_int_status(i2c)) {
+                    wait = false;
+                }
+                if (i2c_nack(i2c)) {
+                    return I2C_ERR_NACK;
+                }
+            }
+            i2c_send_data(i2c, *w++);
+        }
+        //  Not entirely sure this is really necessary in normal case, but it's
+        // useful for timeouts.
+        if (rn) {
+            tick(TIMER_TIMEOUT);
+            uint32_t t_elapsed;
+            while (!i2c_transfer_complete(i2c)) {
+                t_elapsed = tock(TIMER_TIMEOUT);
+                if (t_elapsed > timeout) {
+                    return I2C_ERR_TX_COMPLETE_TIMEOUT;
+                }
+            }
+        }
+    }
+
+    if (rn) {
+        // Setting transfer properties
+        i2c_set_7bit_address(i2c, addr);
+        i2c_set_read_transfer_dir(i2c);
+        i2c_set_bytes_to_transfer(i2c, rn);
+        // start transfer
+        i2c_send_start(i2c);
+        // important to do it afterwards to do a proper repeated start!
+        i2c_enable_autoend(i2c);
+
+        for (size_t i = 0; i < rn; i++) {
+            tick(TIMER_TIMEOUT);
+            uint32_t t_elapsed;
+            while (i2c_received_data(i2c) == 0) {
+                t_elapsed = tock(TIMER_TIMEOUT);
+                if (t_elapsed > timeout) {
+                    return I2C_ERR_RX_TIMEOUT;
+                }
+            }
+            r[i] = i2c_get_data(i2c);
+        }
+    }
+    return I2C_NO_ERR;
+}
+[/code]
+
+The implementation of `tick` and `tock` is not so important here (but you can check them out in [TODO: link timers.h]), just know that `tock` returns the number of microseconds since the most recent `tick` (to a max of 2**17 or roughly 131 milliseconds). Additionally, I've added error reporting so that the caller can detect and handle errors should it need to, and so that I can figure out where the timeout is happening during debug.
+
+Initializing and reading from the sensors (with a timeout determined experimentally) I have is now:
+
+[code]
+// configure a chip
+#define addr 0x48
+#define TIMEOUT 40000
+uint8_t err;
+uint8_t config[] = {0x0x, 0x00, 0x00};
+err = i2c_transfer(I2C1, addr, config, 3, NULL, 0, TIMEOUT);
+if (err) {
+    // handle err
+}
+
+// read a register
+uint8_t retval[2];
+uint8_t reg_addr = 0;
+err = i2c_transfer(I2C1, addr, &reg_addr, 1, retval, 2, TIMEOUT);
+if (err) {
+    // handle err
+}
+[/code]
+
+This worked fine for my board with sensors on it, which shouldn't be a surprise because other than the timeout code it's the same. Unfortunately, my board with no sensors wouldn't enumerate on USB. The micro wasn't hung (I could attach gdb and see that it was running properly), it was just spending so much time waiting for the I2C transfers to time out that it couldn't service the USB interrupts timely enough. Decreasing the TIMEOUT until it did enumerate would cause my board *with* sensors to timeout while initializing the sensors.
+
+To sort this out, I mark off devices that have timed out during initialization and immediately return errors when trying to communicate with them. Roughly, it would look like this:
+
+[code]
+void temperature_init(void) {
+    uint8_t addrs[] = {TSENS0, TSENS1, TSENS2, TSENS3};
+    for (int i = 0; i < 4; i++) {
+        uint8_t config[] = {0x0x, 0x00, 0x00};
+        if (i2c_transfer(I2C1, addr, config, 3, NULL, 0, TIMEOUT) == 0) {
+		    mark_ok(addr);
+		}
+    }
+}
+
+int16_t temperature_read(uint8_t addr) {
+    if (!device_ok(addr)) {
+	    return ERR_DEVICE_BAD;
+    }
+	uint8_t retval[2];
+	uint8_t reg_addr = 0;
+	uint8_t err = i2c_transfer(I2C1, addr, &reg_addr, 1, retval, 2, TIMEOUT);
+	if (err) {
+	    // handle err
+    }
+    return (retval[0] << 8) | retval[1];
+}
+[/code]
+
+This was enough to work on both my use cases.
+
+== Going a Bit Further
+
+I was curious about where the delays were happening, so I added code to be able to record the time each timeout step takes:
+
+[code]
+// if you're passing timings, it will write wn + rn + (rn ? 1 : 0) timestamps
+uint8_t timed_i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
+                           uint8_t *r, size_t rn, uint32_t timeout,
+                           uint32_t *timings) {
+    // libopencm3 i2c_transfer7(), with error report and timeout
+    //  waiting for busy is unnecessary. read the RM
+    if (wn) {
+        i2c_set_7bit_address(i2c, addr);
+        i2c_set_write_transfer_dir(i2c);
+        i2c_set_bytes_to_transfer(i2c, wn);
+        if (rn) {
+                i2c_disable_autoend(i2c);
+        } else {
+                i2c_enable_autoend(i2c);
+        }
+        i2c_send_start(i2c);
+
+        while (wn--) {
+            bool wait = true;
+            tick(TIMER_TIMEOUT);
+            uint32_t t_elapsed;
+            while (wait) {
+                t_elapsed = tock(TIMER_TIMEOUT);
+                if (t_elapsed > timeout) {
+                    return I2C_ERR_TX_TIMEOUT;
+                }
+                if (i2c_transmit_int_status(i2c)) {
+                    wait = false;
+                }
+                if (i2c_nack(i2c)) {
+                    return I2C_ERR_NACK;
+                }
+            }
+            if (timings) {
+                *timings++ = t_elapsed;
+            }
+            i2c_send_data(i2c, *w++);
+        }
+        //  Not entirely sure this is really necessary in normal case, but it's
+        // useful for timeouts.
+        if (rn) {
+            tick(TIMER_TIMEOUT);
+            uint32_t t_elapsed;
+            while (!i2c_transfer_complete(i2c)) {
+                t_elapsed = tock(TIMER_TIMEOUT);
+                if (t_elapsed > timeout) {
+                    return I2C_ERR_TX_TIMEOUT;
+                }
+            }
+            if (timings) {
+                *timings++ = t_elapsed;
+            }
+        }
+    }
+
+    if (rn) {
+        // Setting transfer properties
+        i2c_set_7bit_address(i2c, addr);
+        i2c_set_read_transfer_dir(i2c);
+        i2c_set_bytes_to_transfer(i2c, rn);
+        // start transfer
+        i2c_send_start(i2c);
+        // important to do it afterwards to do a proper repeated start!
+        i2c_enable_autoend(i2c);
+
+        for (size_t i = 0; i < rn; i++) {
+            tick(TIMER_TIMEOUT);
+            uint32_t t_elapsed;
+            while (i2c_received_data(i2c) == 0) {
+                t_elapsed = tock(TIMER_TIMEOUT);
+                if (t_elapsed > timeout) {
+                    return I2C_ERR_RX_TIMEOUT;
+                }
+            }
+            if (timings) {
+                *timings++ = t_elapsed;
+            }
+            r[i] = i2c_get_data(i2c);
+        }
+    }
+    return I2C_NO_ERR;
+}
+
+uint8_t i2c_transfer(uint32_t i2c, uint8_t addr, uint8_t *w, size_t wn,
+                     uint8_t *r, size_t rn, uint32_t timeout) {
+    return timed_i2c_transfer(i2c, addr, w, wn, r, rn, timeout, NULL);
+}
+[/code]
+
+Now a caller can also pass a pointer to an array of `uint32_t`'s and get a fairly detailed look into the timing of a particular transfer. This is really only meant to be a debug tool, so normally a user won't even call `timed_i2c_transfer`. The really neat part about this is that if it's compiled with LTO (`-flto`) there isn't even an object size overhead to having the code around on a production build that never uses it.
+
+[aside:The AT30TS74]
+As an aside, the sensor I'm using on my board is an Atmel AT30TS74 temperature sensor. I'm not doing much more than effectively a software reset as initialization, and then polling the temperature register on read (the post-reset state for this chip is to be constantly measuring the temperature and updating its internal register).
+
+Initialize: Write the address of the config register (0x01), and then zero it out (16 bits, so {0x00, 0x00})
+
+Read: Write the address of the temperature register (0x00), then read two bytes out (high and low byte, respectively). In reality, repeated reads don't need the user to update the address being read from, but my design isn't hard up for time and not relying on the state makes it a bit more robust to the weirdness that is the real world.
+
+The AT30TS74 can function with a bus clock up to 3.4MHz (High Speed mode).
+[/aside]
+
+Results from the time-measurement code:
+|| action (init)        || elapsed [us] ||
+| write config address   |         31058 |
+| write config high byte |            18 |
+| write config low byte  |          9490 |
+|| action (read)        || elapsed [us] ||
+| write register address |           124 |
+| wait for completion    |            98 |
+| read high byte         |           204 |
+| read low byte          |           100 |
+
+Oh, now that's an interesting result. Using the same timeout for read operations as well as the configuration option is clearly not the right way to go. [TODO check the init patterns on scope, is something slowing it down?] On top of keeping track of what has failed to init, I can reduce the timeout on the read operation by 100x and still expect it to work well.
+
+While I'm tuning the I2C code, I may as well bump up to the fastest clock speed everything supports:
+
+[code]
+i2c_set_speed(I2C1, i2c_speed_fmp_1m, rcc_apb1_frequency / 1000000);
+[/code]
+
+The new timings are:
+|| action (init)        || elapsed [us] ||
+| write config address   |          2850 |
+| write config high byte |            44 |
+| write config low byte  |           776 |
+|| action (read)        || elapsed [us] ||
+| write register address |            12 |
+| wait for completion    |            10 |
+| read high byte         |            22 |
+| read low byte          |            10 |
+
+Interestingly, a roughly 10x speedup in most places, for an only 2.5x increase in clock speed. I'm not really sure what to make of that, but seeing as it's still well more than I need I'm not about to look a gift horse in the mouth.
+
+== Hardware details
+
+Initially, I've just used 3.3K resistors as I2C pullups. These allow the system to easily meet the timing/level specs for 400kHz. At 1MHz it's a bit less lucky though:
+
+|| name        || spec [ns] ||   actual [ns] ||
+| SCL low time  |  500 (min) |            700 |
+| SCL high time |  260 (min) |            400 |
+| SCL rise time |  120 (max) | [red]320[/red] |
+| SDA rise time |  120 (max) | [red]280[/red] |
+
+Furthermore, the high levels were just barely reaching the specified minimum 0.7*Vdd. The board seems to be ok with this, but running at or beyond the stated limits is asking for pain when temperature or noise or batch variations or who knows what else nudges performance the wrong way. The 3.3K pullups were just an initial guess,
+
+[TODO: fall times]
+[TODO: try 1.5K, 1K pull-ups to fix this]
+[TODO: scope screenshots]
+
+== Further Work
+
+This is good enough for now, but in the future there are two more things to add to the I2C part of my system: automatically marking a device as non-responsive if it fails "too often", and re-initializing the bus/devices if they get stuck in a non-responsive state.
+
+While probing around, I've seen the bus get "stuck" at some point, where *something* is holding a signal low (I2C is great as a multi-drop bus, because this isn't actually damaging anything, but it is quite effective at stopping all communications on the bus). I'm not sure if this is me luckily catching a problem, or if it's induced by my probing, but it's definitely worth further investigation. Fully protecting from that may need some circuit improvements too (if a device is holding down the bus you use to communicate with it, how do you tell it to stop?).
+
+Nothing's ever complete until it's obsolete, of course.
