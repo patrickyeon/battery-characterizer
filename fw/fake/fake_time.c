@@ -26,13 +26,13 @@ static int _idx(uint32_t timer_peripheral) {
         return 3;
     case TIM16:
         return 4;
+    case TIM17:
+        return 5;
     // TODO skipping a bunch because they aren't implemented yet
     case TIM1:
         //return 0;
     case TIM2:
         //return 1;
-    case TIM17:
-        //return 5;
     default:
         assert(0);
     }
@@ -174,3 +174,8 @@ void timer_clear_flag(uint32_t timer_peripheral, uint32_t flag) {
 // I'm not making a fake_nvic until it's actually needed.
 void nvic_enable_irq(uint8_t irqn) {
 }
+
+// not currently testing IWDG
+void iwdg_start(void) {}
+void iwdg_set_period_ms(uint32_t period) {}
+void iwdg_reset(void) {}

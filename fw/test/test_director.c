@@ -14,6 +14,7 @@ void setup(int16_t setpoint, uint16_t vcells) {
     gpio_init();
     uint8_t chans[] = {CHAN_VB0, CHAN_VB1, CHAN_VB2, CHAN_VB3};
     adc_init(4, chans, ADC_MODE_SCAN_INFINITE);
+    temperature_init();
     fake_at30ts74_set(TSENS0, setpoint);
     fake_at30ts74_set(TSENS1, setpoint);
     fake_at30ts74_set(TSENS2, setpoint);

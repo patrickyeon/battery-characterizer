@@ -2,6 +2,7 @@
 #define I2C_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 enum i2c_err_e {
     I2C_NO_ERR = 0,
