@@ -2,6 +2,7 @@
 
 import fcntl
 import json
+import math
 import os
 import re
 import serial
@@ -271,7 +272,7 @@ class bc:
         # truthstr is t/f for (cendenA, cendenB, cenA, denA, cenB, denB)
         #  right-padded to fill with 'f's. eg 'ttfft' for only cenB on.
         # cendenN = True --> cenN is lower cell, denN is higher cell
-        thruthstr += 'ffffff'[len(truthstr):]
+        truthstr += 'ffffff'[len(truthstr):]
         dirmask, enmask = 0, 0
         if (truthstr[0] == 't'):
             dirmask |= 0x1
@@ -306,16 +307,18 @@ class bc:
 
 class TestFoo(bc):
     def read_all_adcs(self):
-        adcs = []
+        results = []
         self.echo_for('adc_scan')
-        for chan in range(8):
+        channels = zip(range(10),
+                       'ic_a ic_b id_a id_b vb1 vb0 vb3 vb2 temp vref'.split())
+        for chan, name in channels:
             try:
                 resp = self.echo_for('adc_read', channel=chan)
-                adcs.append(resp['value'])
+                results.append((name, resp['value']))
             except ResponseException:
-                adcs.append(-1)
-        return odict(zip('ic_a ic_b id_a id_b vb_1 vb_0 vb_3 vb_2'.split(),
-                         adcs))
+                results.append((name, -1))
+        return odict(results)
+
     def test_logger(self, period=100, sleep=5):
         print self.get_time()
         self.echo_for('log_period_set', period=period)
@@ -328,6 +331,45 @@ class TestFoo(bc):
             pass
         self.echo_for('log_en_dis', enable=0)
         print self.get_time()
+
+    def test_currents(self, set_chan, read_chan, nsamples=20,
+                      start=150, stop=1601, step=50):
+        results = []
+        for i in range(start, stop, step):
+            self.set_i(set_chan, i)
+            while True:
+                try:
+                    reading = int(raw_input('{} : '.format(i)))
+                    break
+                except ValueError:
+                    print 'input reading in mA, integer only'
+            adcs = []
+            for j in range(nsamples):
+                adcs.append(self.read_adc(read_chan)['value'])
+                time.sleep(0.01)
+            results.append((i, reading, adcs))
+        return results
+
+    def check_fit(self, func, truth, adcs):
+        err_fit = [mean - func(reading) for (reading, mean) in zip(truth, adcs)]
+        rel_err = [float(e) / r for (e, r) in zip(err_fit, truth)]
+        return {'err': err_fit, 'max_rel': max(map(abs, rel_err)),
+                'mean_rel': sum(map(abs, rel_err)) / len(rel_err)}
+
+    def fit_measurements(self, measurements):
+        from numpy import polyfit, poly1d
+        def calc_stats(seq):
+            avg = sum(seq) / float(len(seq))
+            std = math.sqrt(sum([(s - avg) ** 2 for s in seq])
+                            / float(len(seq) - 1))
+            return avg, std
+        stats = [calc_stats(adcs) for (_, _, adcs) in measurements]
+        fit = polyfit([r for (_, r, _) in measurements],
+                      [s[0] for s in stats], 1)
+        func = poly1d(fit)
+        err_fit = check_fit(func, [r for (_, r, _) in measurements],
+                            [m for (m, _) in stats])['err']
+        return {'fit': fit, 'func':func, 'stats': stats, 'err': err_fit}
 
 class Characterizer(bc):
     def __init__(self, hwid, cell_serials, tty=None):

@@ -29,6 +29,8 @@
 #define CHAN_VB1 4
 #define CHAN_VB2 7
 #define CHAN_VB3 6
+#define CHAN_TEMP 16
+#define CHAN_VREF 17
 
 // direction setting, charge/discharge enables. mixed across PORTA/PORTB
 // sigh. Would've been better to swap CEN_B and DIR_B.

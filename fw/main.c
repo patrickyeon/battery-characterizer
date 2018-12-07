@@ -22,8 +22,9 @@ void init(void) {
     i2c_init();
     // ohhh, channel list has to be in order
     uint8_t adc_chans[] = {CHAN_IC_A, CHAN_IC_B, CHAN_ID_A, CHAN_ID_B,
-                           CHAN_VB1, CHAN_VB0, CHAN_VB3, CHAN_VB2};
-    adc_init(8, adc_chans, ADC_MODE_SCAN);
+                           CHAN_VB1, CHAN_VB0, CHAN_VB3, CHAN_VB2,
+                           CHAN_TEMP, CHAN_VREF};
+    adc_init(10, adc_chans, ADC_MODE_SCAN);
     temperature_init();
     director_init();
     usb_init();
